@@ -153,12 +153,10 @@ _exclude:
   - "dist"
   - "build"
   - "*.egg-info"
-  - "README.md"      # テンプレートリポジトリのREADME（プロジェクトには含めない）
-  - "LICENSE"        # テンプレートリポジトリのLICENSE（プロジェクトには含めない）
-  - ".gitignore"     # テンプレートリポジトリの.gitignore（プロジェクトには含めない）
   - "{% if not use_ruff %}ruff.toml.jinja{% endif %}"  # Ruff未使用の場合は除外
   - "{% if not use_nix %}flake.nix.jinja{% endif %}"  # Nix未使用の場合は除外
   - "{% if not use_nix %}.envrc{% endif %}"  # Nix未使用の場合は除外
+  - "{% if not use_nix %}docs{% endif %}"  # Nix未使用の場合はdocsディレクトリ全体を除外
   - "{% if not use_github_actions %}.github{% endif %}"  # GitHub Actions未使用の場合は除外
 
 # ============================================================================
