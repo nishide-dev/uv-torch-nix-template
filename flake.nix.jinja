@@ -1,0 +1,176 @@
+{
+  description = "Deep Learning Environment: uv + PyTorch + Managed CUDA (NixOS Compatible)";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+
+  outputs = { self, nixpkgs, flake-utils }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        # CUDA対応のpkgsを作成（Unfreeパッケージを許可）
+        pkgs = import nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;  # CUDA関連パッケージはunfree
+            cudaSupport = true;
+          };
+        };
+
+        # ---------------------------------------------------------
+        # 【重要】CUDAバージョンの管理ポイント
+        # ここで指定したバージョンのToolkitが環境に展開される
+        # 利用可能: cudaPackages_11_8, cudaPackages_12_1, cudaPackages
+        # ---------------------------------------------------------
+        cudaPackages = pkgs.cudaPackages;  # デフォルトバージョンを使用
+
+        # Pythonバージョンの選択（既存プロジェクトの.python-versionから取得）
+        pythonVersionFile = builtins.readFile ./.python-version;
+        pythonVersionClean = builtins.replaceStrings ["\n" " "] ["" ""] pythonVersionFile;
+        pythonVersionAttr = builtins.replaceStrings ["."] [""] pythonVersionClean;
+        python = pkgs."python${pythonVersionAttr}" or pkgs.python312;
+
+        # システムレベルの依存関係
+        # Python環境が動くために必要なライブラリ群
+        systemDependencies = with pkgs; [
+          stdenv.cc.cc.lib  # libstdc++.so.6 - PyTorchに必須
+          zlib
+          glib
+          git
+          curl
+          # ビルドツール（flash-attn等のコンパイルに必要）
+          ninja
+          cmake
+          which
+          pkg-config
+        ];
+
+        # CUDA関連ライブラリ
+        cudaLibs = with cudaPackages; [
+          cuda_cudart       # CUDA Runtime
+          cuda_nvcc         # CUDA Compiler
+          cudnn             # cuDNN
+          libcublas         # cuBLAS
+          {% if additional_cuda_libs %}
+          # 追加ライブラリ: {{ additional_cuda_libs }}
+          {% for lib in additional_cuda_libs.split(',') if lib.strip() %}
+          {{ lib.strip() }}
+          {% endfor %}
+          {% endif %}
+        ];
+
+      in {
+        devShells.default = pkgs.mkShell {
+          name = "cuda-torch-uv-shell";
+
+          packages = [
+            # Python環境
+            python
+            pkgs.uv
+
+            # Node.js環境（AI CLIツール用）
+            pkgs.nodejs_22
+          ] ++ systemDependencies ++ cudaLibs;
+
+          # nix-ldのためのライブラリパス設定
+          # これにより未パッチのバイナリ（PyTorchのWheel等）が動作可能になる
+          NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (systemDependencies ++ cudaLibs);
+          NIX_LD = pkgs.lib.fileContents "${pkgs.stdenv.cc}/nix-support/dynamic-linker";
+
+          env = {
+            # uvにNix提供のPythonを使用させる
+            UV_PYTHON = "${python}/bin/python";
+            UV_PYTHON_DOWNLOADS = "never";
+
+            # npmグローバルインストール先をローカルに設定
+            NPM_CONFIG_PREFIX = "$HOME/.npm-global";
+
+            # CUDA環境変数
+            # 多くのビルドスクリプトが参照するCUDA_HOMEを設定
+            CUDA_HOME = "${cudaPackages.cudatoolkit}";
+            CUDA_PATH = "${cudaPackages.cudatoolkit}";
+            CUDNN_PATH = "${cudaPackages.cudnn}";
+          };
+
+          shellHook = ''
+            # カラー出力
+            GREEN='\033[0;32m'
+            YELLOW='\033[1;33m'
+            BLUE='\033[0;34m'
+            NC='\033[0m' # No Color
+
+            # --- ライブラリパス (LD_LIBRARY_PATH) の構築 ---
+            # これにより、TorchのWheelがNixストア内のライブラリを見つけられるようにする
+            # 【最重要】/run/opengl-driver/lib を含めることでlibcuda.soが見つかる
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath (systemDependencies ++ cudaLibs)}:/run/opengl-driver/lib:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+            # libstdc++を優先的に使用（ABI互換性のため）
+            export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"
+
+            # コンパイル用フラグ（flash-attn等をビルドする場合に必要）
+            export EXTRA_LDFLAGS="-L/lib -L${cudaPackages.cudatoolkit}/lib"
+            export EXTRA_CCFLAGS="-I/usr/include -I${cudaPackages.cudatoolkit}/include"
+
+            # npmグローバルパスをPATHに追加
+            export PATH="$HOME/.npm-global/bin:$PATH"
+
+            # CUDAコンパイラのPATH追加
+            export PATH="${cudaPackages.cuda_nvcc}/bin:$PATH"
+
+            # 仮想環境の初期化と有効化
+            if [ ! -d ".venv" ]; then
+              echo -e "''${YELLOW}Initializing uv virtual environment...''${NC}"
+              uv venv
+            fi
+            source .venv/bin/activate
+
+            # AI CLIツールのインストール確認とインストール
+            echo ""
+            echo "=================================================="
+            echo -e "''${BLUE}Checking AI CLI Tools...''${NC}"
+            echo "=================================================="
+
+            # Claude Code CLIのインストール確認
+            if ! command -v claude &> /dev/null; then
+              echo -e "''${YELLOW}Installing Claude Code CLI...''${NC}"
+              npm install -g @anthropic-ai/claude-code 2>/dev/null || {
+                echo -e "''${YELLOW}Falling back to curl installation method...''${NC}"
+                curl -fsSL https://claude.ai/install.sh | bash
+              }
+            fi
+
+            echo ""
+            echo "=================================================="
+            echo -e "''${GREEN}PyTorch/CUDA Development Environment Ready''${NC}"
+            echo "=================================================="
+            echo "Python:      $(python --version)"
+            echo "uv:          $(uv --version)"
+            echo "CUDA Toolkit: ${cudaPackages.cudatoolkit.version or "default"}"
+            echo "PyTorch:     {{ pytorch_version }}"
+            echo "Node.js:     $(node --version)"
+
+            # CLIツールのバージョン確認
+            if command -v claude &> /dev/null; then
+              echo "Claude Code: $(claude --version 2>/dev/null || echo 'installed')"
+            fi
+
+            echo ""
+            echo "次のステップ:"
+            echo "  1. PyTorchのインストール:"
+            echo "     uv sync                          # pyproject.tomlから依存関係をインストール"
+            echo ""
+            echo "  2. GPU動作確認:"
+            echo "     uv run python -c 'import torch; print(f\"CUDA: {torch.cuda.is_available()}\")'"
+            echo ""
+            echo "  3. flash-attn等のビルドが必要なパッケージ:"
+            echo "     uv add flash-attn --no-build-isolation"
+            echo ""
+            echo "  ドキュメント: docs/CUDA_SETUP.md を参照"
+            echo "=================================================="
+            echo ""
+          '';
+        };
+      }
+    );
+}

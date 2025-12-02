@@ -1,0 +1,72 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+{%- if use_pytest %}
+  test:
+    name: Test on Python {% raw %}${{ matrix.python-version }}{% endraw %}
+    runs-on: {% raw %}${{ matrix.os }}{% endraw %}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version:
+{%- if python_version == "3.10" %}
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+{%- elif python_version == "3.11" %}
+          - "3.11"
+          - "3.12"
+          - "3.13"
+{%- elif python_version == "3.12" %}
+          - "3.12"
+          - "3.13"
+{%- else %}
+          - "3.13"
+{%- endif %}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python {% raw %}${{ matrix.python-version }}{% endraw %}
+        run: uv python install {% raw %}${{ matrix.python-version }}{% endraw %}
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev
+
+      - name: Run tests with Pytest
+        run: |
+          uv run pytest --cov=src --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: {% raw %}matrix.python-version == '{% endraw %}{{ python_version }}{% raw %}'{% endraw %}
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: Check CUDA availability (CPU-only in CI)
+        run: |
+          uv run python -c "
+          import torch
+          print(f'PyTorch version: {torch.__version__}')
+          print(f'CUDA available: {torch.cuda.is_available()}')
+          print('Note: CUDA is expected to be False in GitHub Actions (CPU-only)')
+          "
+{%- endif %}

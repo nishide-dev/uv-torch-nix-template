@@ -1,0 +1,320 @@
+# {{ project_name }}
+
+{{ description }}
+
+## Features
+
+- ⚡ **Fast package management** with [uv](https://github.com/astral-sh/uv)
+- 🔥 **PyTorch {{ pytorch_version }}** with CUDA {{ cuda_version }} support
+- 🎮 **GPU acceleration** ready out of the box
+- 📦 **Modern Python packaging** using `pyproject.toml` (PEP 621)
+- 🏗️ **Src layout** for better import hygiene
+{%- if use_ruff %}
+- 🔍 **Code quality** with Ruff (linter + formatter)
+{%- endif %}
+{%- if use_ty %}
+- 🔒 **Type safety** with ty
+{%- endif %}
+{%- if use_pytest %}
+- ✅ **Testing** with Pytest
+{%- endif %}
+{%- if use_github_actions %}
+- 🚀 **CI/CD** with GitHub Actions
+{%- endif %}
+- 🐧 **NixOS compatible** with complete CUDA environment management
+
+## Requirements
+
+- Python {{ python_version }}+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- NVIDIA GPU with compatible driver (for GPU acceleration)
+- Nix + direnv (for reproducible environment)
+
+## Installation
+
+### For developers
+
+#### With Nix (recommended for reproducibility)
+
+```bash
+# Clone the repository
+git clone https://github.com/{{ author_name }}/{{ project_name }}.git
+cd {{ project_name }}
+
+# Allow direnv (first time only)
+direnv allow
+
+# Environment is automatically activated with CUDA!
+# Sync dependencies
+uv sync
+
+# Verify CUDA is available
+uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+**NixOS users**: Please read [docs/NIX_SETUP.md](docs/NIX_SETUP.md) for system-level configuration requirements.
+
+#### Without Nix
+
+```bash
+# Clone the repository
+git clone https://github.com/{{ author_name }}/{{ project_name }}.git
+cd {{ project_name }}
+
+# Create virtual environment and install dependencies
+uv venv
+uv sync
+
+# Activate the virtual environment
+source .venv/bin/activate  # Linux/macOS
+# or
+.venv\Scripts\activate  # Windows
+```
+
+**Note**: Without Nix, you'll need to manually install CUDA Toolkit {{ cuda_version }} on your system.
+
+## Usage
+
+### Basic usage
+
+```python
+from {{ package_name }} import hello, check_cuda
+
+print(hello())
+# Output: Hello from {{ project_name }}!
+
+# Check CUDA availability
+cuda_info = check_cuda()
+print(f"CUDA available: {cuda_info['cuda_available']}")
+print(f"GPU: {cuda_info['device_name']}")
+```
+
+### PyTorch example
+
+```python
+import torch
+
+# Create a tensor on GPU
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    x = torch.randn(1000, 1000, device=device)
+    y = torch.matmul(x, x)
+    print(f"Computation done on: {y.device}")
+else:
+    print("CUDA not available, using CPU")
+```
+
+## Development
+
+### Running tests
+
+{%- if use_pytest %}
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=src --cov-report=html
+
+# Run GPU-specific tests (if CUDA is available)
+uv run pytest -v
+```
+
+{%- else %}
+
+```bash
+# Tests are not configured yet
+# Install pytest: uv add --dev pytest
+```
+
+{%- endif %}
+
+### Code formatting and linting
+
+{%- if use_ruff %}
+
+```bash
+# Format code
+uv run ruff format .
+
+# Lint code
+uv run ruff check .
+
+# Fix auto-fixable issues
+uv run ruff check --fix .
+```
+
+{%- else %}
+
+```bash
+# Ruff is not configured yet
+# Install ruff: uv add --dev ruff
+```
+
+{%- endif %}
+
+### Type checking
+
+{%- if use_ty %}
+
+```bash
+uv run ty check
+```
+
+{%- else %}
+
+```bash
+# ty is not configured yet
+# Install ty: uv add --dev ty
+```
+
+{%- endif %}
+
+### Adding dependencies
+
+```bash
+# Add a runtime dependency
+uv add <package-name>
+
+# Add PyTorch-related packages
+uv add transformers accelerate datasets
+
+# Add packages that need compilation (use --no-build-isolation on NixOS)
+uv add flash-attn --no-build-isolation
+
+# Add a development dependency
+uv add --dev <package-name>
+
+# Update all dependencies
+uv lock --upgrade
+```
+
+## GPU Environment
+
+### Verify CUDA installation
+
+```bash
+# Check PyTorch CUDA availability
+uv run python -c "
+import torch
+print(f'PyTorch version: {torch.__version__}')
+print(f'CUDA available: {torch.cuda.is_available()}')
+print(f'CUDA version: {torch.version.cuda}')
+if torch.cuda.is_available():
+    print(f'Device count: {torch.cuda.device_count()}')
+    print(f'Device name: {torch.cuda.get_device_name(0)}')
+"
+```
+
+### Performance optimization
+
+```python
+import torch
+
+# Enable cuDNN benchmark for optimal performance
+torch.backends.cudnn.benchmark = True
+
+# Use mixed precision training
+from torch.cuda.amp import autocast, GradScaler
+
+scaler = GradScaler()
+
+# In training loop:
+with autocast():
+    output = model(input)
+    loss = criterion(output, target)
+
+scaler.scale(loss).backward()
+scaler.step(optimizer)
+scaler.update()
+```
+
+## Project Structure
+
+```
+{{ project_name }}/
+├── src/
+│   └── {{ package_name }}/
+│       ├── __init__.py           # Package entry point with CUDA check
+│       └── py.typed              # Type information marker
+{%- if use_pytest %}
+├── tests/
+│   ├── __init__.py
+│   └── test_{{ package_name }}.py  # Tests including GPU tests
+{%- endif %}
+├── docs/
+│   ├── NIX_SETUP.md              # NixOS-specific setup (required reading)
+│   └── CUDA_SETUP.md             # PyTorch/CUDA setup guide
+├── flake.nix                     # Nix environment with CUDA
+├── .envrc                        # direnv configuration
+├── pyproject.toml                # Project config with PyTorch index
+├── uv.lock                       # Dependency lock file
+├── .gitignore
+├── .python-version               # Python {{ python_version }}
+{%- if use_ruff %}
+├── ruff.toml                     # Ruff configuration
+{%- endif %}
+├── LICENSE
+├── README.md                     # This file
+{%- if use_github_actions %}
+└── .github/
+    └── workflows/
+        └── test.yml              # CI/CD configuration
+{%- endif %}
+```
+
+## Environment Details
+
+- **Python**: {{ python_version }}
+- **PyTorch**: {{ pytorch_version }}
+- **CUDA**: {{ cuda_version }}
+- **cuDNN**: {{ cudnn_version }}
+{%- if use_torchvision %}
+- **torchvision**: Included
+{%- endif %}
+{%- if use_torchaudio %}
+- **torchaudio**: Included
+{%- endif %}
+
+## Troubleshooting
+
+### CUDA not available
+
+If `torch.cuda.is_available()` returns `False`:
+
+1. **Check NVIDIA driver**: Run `nvidia-smi`
+2. **NixOS users**: See [docs/NIX_SETUP.md](docs/NIX_SETUP.md) for system configuration
+3. **Verify PyTorch build**: Run `python -c "import torch; print(torch.version.cuda)"`
+4. **Reload environment**: `direnv reload`
+
+### Build errors for packages like flash-attn
+
+On NixOS, use `--no-build-isolation`:
+
+```bash
+uv add flash-attn --no-build-isolation
+```
+
+### For more help
+
+- See [docs/NIX_SETUP.md](docs/NIX_SETUP.md) for NixOS-specific issues
+- See [docs/CUDA_SETUP.md](docs/CUDA_SETUP.md) for general CUDA setup
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgments
+
+This project was generated with:
+- [uv-nix-template](https://github.com/nishide-dev/uv-nix-template) - Base template
+- [uv-torch-nix-template](https://github.com/nishide-dev/uv-torch-nix-template) - PyTorch/CUDA extension
+
+---
+
+Generated with ❤️ for GPU-accelerated deep learning

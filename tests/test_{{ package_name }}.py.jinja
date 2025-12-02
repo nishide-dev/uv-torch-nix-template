@@ -1,0 +1,91 @@
+"""Tests for {{ package_name }}."""
+
+from {{ package_name }} import check_cuda, hello
+
+
+{%- if use_pytest %}
+
+
+def test_hello() -> None:
+    """Test the hello function."""
+    result = hello()
+    assert isinstance(result, str)
+    assert "{{ project_name }}" in result
+    assert result == "Hello from {{ project_name }}!"
+
+
+def test_hello_return_type() -> None:
+    """Test that hello returns a string."""
+    result = hello()
+    assert isinstance(result, str)
+
+
+def test_check_cuda_returns_dict() -> None:
+    """Test that check_cuda returns a dictionary."""
+    result = check_cuda()
+    assert isinstance(result, dict)
+    assert "cuda_available" in result
+    assert "cuda_version" in result
+    assert "device_count" in result
+    assert "device_name" in result
+
+
+def test_check_cuda_types() -> None:
+    """Test that check_cuda returns correct types."""
+    result = check_cuda()
+    assert isinstance(result["cuda_available"], bool)
+    assert isinstance(result["device_count"], int)
+    assert result["device_count"] >= 0
+
+
+class TestHello:
+    """Test class for hello function."""
+
+    def test_hello_not_empty(self) -> None:
+        """Test that hello returns a non-empty string."""
+        result = hello()
+        assert len(result) > 0
+
+    def test_hello_contains_project_name(self) -> None:
+        """Test that hello contains the project name."""
+        result = hello()
+        assert "{{ project_name }}" in result
+
+
+class TestCUDA:
+    """Test class for CUDA functionality."""
+
+    def test_cuda_check_structure(self) -> None:
+        """Test that CUDA check returns expected structure."""
+        result = check_cuda()
+        expected_keys = {"cuda_available", "cuda_version", "device_count", "device_name"}
+        assert set(result.keys()) == expected_keys
+
+{%- else %}
+
+
+# Basic test without pytest
+# Install pytest with: uv add --dev pytest
+# Then run: uv run pytest
+
+
+def test_hello() -> None:
+    """Test the hello function."""
+    result = hello()
+    assert isinstance(result, str), "hello() should return a string"
+    assert "{{ project_name }}" in result, f"Expected project name in: {result}"
+
+
+def test_check_cuda() -> None:
+    """Test the check_cuda function."""
+    result = check_cuda()
+    assert isinstance(result, dict), "check_cuda() should return a dict"
+    assert "cuda_available" in result, "Result should contain cuda_available"
+
+
+if __name__ == "__main__":
+    test_hello()
+    test_check_cuda()
+    print("All tests passed!")
+
+{%- endif %}

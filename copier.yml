@@ -1,0 +1,275 @@
+# Copier template configuration for uv-torch-nix-template
+# This is an extension template that adds PyTorch/CUDA support to uv-nix-template
+
+_min_copier_version: "9.0.0"
+
+# ============================================================================
+# User questions - Project基本情報
+# ============================================================================
+
+project_name:
+  type: str
+  help: "プロジェクト名を入力してください (Enterでディレクトリ名を使用)"
+  default: "{{ _copier_conf.dst_path.name }}"
+
+package_name:
+  type: str
+  help: "パッケージ名を入力してください (Pythonのインポート名、通常はスネークケース)"
+  default: "{{ project_name | replace('-', '_') }}"
+
+description:
+  type: str
+  help: "プロジェクトの短い説明を入力してください"
+  default: "A PyTorch/CUDA deep learning project"
+
+author_name:
+  type: str
+  help: "作者名を入力してください"
+  default: "Your Name"
+
+author_email:
+  type: str
+  help: "作者のメールアドレスを入力してください"
+  default: "your.email@example.com"
+
+python_version:
+  type: str
+  help: "対象とする最小Pythonバージョンを選択してください"
+  default: "3.12"
+  choices:
+    - "3.10"
+    - "3.11"
+    - "3.12"
+    - "3.13"
+
+# ============================================================================
+# User questions - 開発ツール設定
+# ============================================================================
+
+use_ruff:
+  type: bool
+  help: "Ruff (高速linter/formatter) を使用しますか？"
+  default: true
+
+use_ty:
+  type: bool
+  help: "ty (高速型チェッカー by Astral) を使用しますか？"
+  default: true
+
+use_pytest:
+  type: bool
+  help: "Pytest (テストフレームワーク) を使用しますか？"
+  default: true
+
+use_mypy:
+  type: bool
+  help: "mypy (型チェッカー) を使用しますか？"
+  default: false
+
+use_github_actions:
+  type: bool
+  help: "GitHub Actions CI/CDを設定しますか？"
+  default: true
+
+use_nix:
+  type: bool
+  help: "Nix + direnv による開発環境管理を使用しますか？"
+  default: true
+
+# ============================================================================
+# User questions - PyTorch/CUDA configuration
+# ============================================================================
+#
+# 【CUDA/PyTorchバージョン対応表】
+# ┌─────────────┬─────────────┬──────────────┬─────────────────────┐
+# │ PyTorch     │ CUDA        │ cuDNN        │ 推奨環境            │
+# ├─────────────┼─────────────┼──────────────┼─────────────────────┤
+# │ 2.5.1       │ 12.4, 12.1  │ 9.1.0        │ RTX 40xx (Ada)      │
+# │ 2.4.1       │ 12.1, 11.8  │ 8.9.7        │ RTX 30xx (Ampere)   │
+# │ 2.3.1       │ 12.1, 11.8  │ 8.9.2        │ RTX 30xx (Ampere)   │
+# │ 2.2.2       │ 12.1, 11.8  │ 8.9.2        │ 汎用                │
+# │ 2.1.2       │ 12.1, 11.8  │ 8.9.2        │ 古いGPU対応         │
+# └─────────────┴─────────────┴──────────────┴─────────────────────┘
+#
+# 【注意事項】
+# - NixOS上で使用する場合は docs/NIX_SETUP.md を必ず参照してください
+# - nixpkgsで利用可能なCUDAバージョンは限られています（11.8, 12.1等）
+# - CUDA 12.4以降は nixpkgs の対応状況を確認してください
+# - GPUアーキテクチャに応じて適切なCUDAバージョンを選択してください
+#
+# 詳細: https://pytorch.org/get-started/locally/
+# ============================================================================
+
+pytorch_version:
+  type: str
+  help: "PyTorchバージョンを入力してください（例: 2.5.1, 2.4.1, 2.3.1）"
+  default: "2.5.1"
+
+cuda_version:
+  type: str
+  help: "CUDAバージョンを入力してください（例: 12.4, 12.1, 11.8）｜NixOS: docs/NIX_SETUP.md参照"
+  default: "12.4"
+
+cudnn_version:
+  type: str
+  help: "cuDNNバージョンを入力してください（例: 9.1.0, 8.9.7）"
+  default: "9.1.0"
+
+pytorch_cuda_arch:
+  type: str
+  help: "PyTorch CUDA architectureを入力してください（cu124, cu121, cu118など。空白の場合はcuda_versionから自動生成）"
+  default: ""
+
+use_torchvision:
+  type: bool
+  help: "torchvisionを含めますか？"
+  default: true
+
+use_torchaudio:
+  type: bool
+  help: "torchaudioを含めますか？"
+  default: false
+
+additional_cuda_libs:
+  type: str
+  help: "追加のCUDAライブラリ（カンマ区切り、例: nccl,cutlass,libcusparse）｜分散学習やスパース演算に必要"
+  default: ""
+
+# ============================================================================
+# File/directory exclusion settings
+# ============================================================================
+
+_exclude:
+  - "copier.yml"
+  - "copier.yaml"
+  - ".git"
+  - ".venv"
+  - "__pycache__"
+  - "*.pyc"
+  - ".pytest_cache"
+  - ".mypy_cache"
+  - ".ruff_cache"
+  - "uv.lock"
+  - "dist"
+  - "build"
+  - "*.egg-info"
+  - "README.md"      # テンプレートリポジトリのREADME（プロジェクトには含めない）
+  - "LICENSE"        # テンプレートリポジトリのLICENSE（プロジェクトには含めない）
+  - ".gitignore"     # テンプレートリポジトリの.gitignore（プロジェクトには含めない）
+  - "{% if not use_ruff %}ruff.toml.jinja{% endif %}"  # Ruff未使用の場合は除外
+  - "{% if not use_nix %}flake.nix.jinja{% endif %}"  # Nix未使用の場合は除外
+  - "{% if not use_nix %}.envrc{% endif %}"  # Nix未使用の場合は除外
+  - "{% if not use_github_actions %}.github{% endif %}"  # GitHub Actions未使用の場合は除外
+
+# ============================================================================
+# Post-generation tasks
+# ============================================================================
+
+_tasks:
+  - |
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🎉 PyTorch/CUDA Development Environment Created!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "📦 Project: {{ project_name }}"
+    echo "📁 Package: {{ package_name }}"
+    echo ""
+    echo "🔥 GPU/CUDA Configuration:"
+    echo "   • PyTorch:    {{ pytorch_version }}"
+    echo "   • CUDA:       {{ cuda_version }}"
+    echo "   • cuDNN:      {{ cudnn_version }}"
+    {% if use_torchvision %}echo "   • torchvision: Enabled"{% endif %}
+    {% if use_torchaudio %}echo "   • torchaudio:  Enabled"{% endif %}
+    echo ""
+    echo "🐍 Python Environment:"
+    echo "   • Python:     {{ python_version }}+"
+    {% if use_ruff %}echo "   • Ruff:       Enabled (linter/formatter)"{% endif %}
+    {% if use_ty %}echo "   • ty:         Enabled (type checker)"{% endif %}
+    {% if use_mypy %}echo "   • mypy:       Enabled (type checker)"{% endif %}
+    {% if use_pytest %}echo "   • Pytest:     Enabled (test framework)"{% endif %}
+    echo ""
+    {% if use_nix %}
+    echo "⚠️  IMPORTANT: NixOS Users"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Before proceeding, you MUST configure your system:"
+    echo ""
+    echo "1. Edit /etc/nixos/configuration.nix to enable:"
+    echo "   • NVIDIA drivers (services.xserver.videoDrivers)"
+    echo "   • hardware.opengl.enable = true"
+    echo "   • programs.nix-ld.enable = true"
+    echo ""
+    echo "2. Apply the configuration:"
+    echo "   sudo nixos-rebuild switch"
+    echo ""
+    echo "📖 See docs/NIX_SETUP.md for detailed instructions"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    {% endif %}
+    echo "🚀 Next Steps:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    {% if use_nix %}
+    echo "1. Activate the Nix environment:"
+    echo "   direnv allow"
+    echo "   # The environment will auto-activate and show GPU status"
+    echo ""
+    echo "2. Install dependencies:"
+    {% else %}
+    echo "1. Create a virtual environment:"
+    echo "   uv venv"
+    echo "   source .venv/bin/activate  # or .venv\\Scripts\\activate on Windows"
+    echo ""
+    echo "2. Install dependencies:"
+    {% endif %}
+    echo "   uv sync"
+    echo ""
+    echo "3. Verify CUDA availability:"
+    echo "   uv run python -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}')\""
+    echo ""
+    {% if use_pytest %}
+    echo "4. Run tests:"
+    echo "   uv run pytest"
+    echo ""
+    {% endif %}
+    echo "📚 Documentation:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    {% if use_nix %}
+    echo "   • docs/NIX_SETUP.md   - NixOS-specific setup (REQUIRED)"
+    {% endif %}
+    echo "   • docs/CUDA_SETUP.md  - PyTorch/CUDA environment guide"
+    echo "   • README.md           - Project overview and usage"
+    echo ""
+    echo "💡 Useful Commands:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "   • uv add <package>              - Add a dependency"
+    echo "   • uv add --dev <package>        - Add a dev dependency"
+    echo "   • uv add flash-attn --no-build-isolation  - Add packages that need compilation"
+    {% if use_pytest %}
+    echo "   • uv run pytest                 - Run tests"
+    echo "   • uv run pytest --cov=src       - Run tests with coverage"
+    {% endif %}
+    {% if use_ruff %}
+    echo "   • uv run ruff check .           - Lint code"
+    echo "   • uv run ruff format .          - Format code"
+    {% endif %}
+    {% if use_ty %}
+    echo "   • uv run ty check               - Type check with ty"
+    {% endif %}
+    {% if use_mypy %}
+    echo "   • uv run mypy src               - Type check with mypy"
+    {% endif %}
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✨ Happy GPU-accelerated deep learning! ✨"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+# ============================================================================
+# Template metadata
+# ============================================================================
+
+_metadata:
+  template_version: "0.1.0"
+  base_template: "uv-nix-template"
+  description: "PyTorch/CUDA extension for uv-nix-template"

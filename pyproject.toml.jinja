@@ -1,0 +1,152 @@
+# pyproject.toml - Python project configuration
+# This file is generated from the uv-torch-nix-template Copier template
+
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+readme = "README.md"
+authors = [
+    { name = "{{ author_name }}", email = "{{ author_email }}" }
+]
+requires-python = ">={{ python_version }}"
+dependencies = []
+
+# Classifiers help users find your project
+# See https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: {{ python_version }}",
+{%- if python_version == "3.10" %}
+    "Programming Language :: Python :: 3.10",
+{%- endif %}
+{%- if python_version in ["3.10", "3.11"] %}
+    "Programming Language :: Python :: 3.11",
+{%- endif %}
+{%- if python_version in ["3.10", "3.11", "3.12"] %}
+    "Programming Language :: Python :: 3.12",
+{%- endif %}
+    "Programming Language :: Python :: 3.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+managed = true  # uvによる環境管理を有効化
+
+# Hatch build configuration
+[tool.hatch.build.targets.wheel]
+packages = ["src/{{ package_name }}"]
+
+# ============================================================================
+# PyTorch CUDA Index Configuration
+# ============================================================================
+# uvの公式ガイドに従ったPyTorchインデックス設定
+# https://docs.astral.sh/uv/guides/integration/pytorch/#using-a-pytorch-index
+#
+# CUDA {{ cuda_version }} 用のPyTorchをインストールするための設定
+# explicit = true により、このインデックスを明示的に指定した依存関係のみ
+# このインデックスから解決されます
+[[tool.uv.index]]
+name = "pytorch-cu{{ cuda_version | replace('.', '') }}"
+url = "https://download.pytorch.org/whl/cu{{ cuda_version | replace('.', '') }}"
+explicit = true
+
+# ============================================================================
+# Development tool configurations
+# ============================================================================
+
+{% if use_ty -%}
+# ty - 高速Python型チェッカー (Rust製)
+# https://docs.astral.sh/ty/
+[tool.ty]
+
+[tool.ty.environment]
+python-version = "{{ python_version }}"
+
+[tool.ty.terminal]
+output-format = "full"
+
+{% endif -%}
+
+{% if use_pytest -%}
+# Pytest - テストフレームワーク
+# https://docs.pytest.org/
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+]
+
+# Coverage settings (pytest-cov plugin)
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+{% endif -%}
+
+{% if use_mypy -%}
+# mypy - 静的型チェッカー
+# https://mypy.readthedocs.io/
+[tool.mypy]
+python_version = "{{ python_version }}"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+# Third-party packages without type stubs
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "torchvision.*",
+{%- if use_torchaudio %}
+    "torchaudio.*",
+{%- endif %}
+]
+ignore_missing_imports = true
+{% endif -%}
+
+# ============================================================================
+# Dependency Groups (PEP 735)
+# https://peps.python.org/pep-0735/
+# ============================================================================
+
+[dependency-groups]
+dev = [
+    # PyTorch and related libraries
+    "torch=={{ pytorch_version }}",
+{%- if use_torchvision %}
+    "torchvision",
+{%- endif %}
+{%- if use_torchaudio %}
+    "torchaudio",
+{%- endif %}
+    # Development tools
+{%- if use_pytest %}
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+{%- endif %}
+{%- if use_ruff %}
+    "ruff>=0.6",
+{%- endif %}
+{%- if use_ty %}
+    "ty",
+{%- endif %}
+{%- if use_mypy %}
+    "mypy>=1.0",
+{%- endif %}
+]
