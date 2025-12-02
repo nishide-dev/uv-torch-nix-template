@@ -84,7 +84,7 @@
             UV_PYTHON_DOWNLOADS = "never";
 
             # npmグローバルインストール先をローカルに設定
-            NPM_CONFIG_PREFIX = "$HOME/.npm-global";
+            # Note: This will be set in shellHook to properly expand $HOME
 
             # CUDA環境変数
             # 多くのビルドスクリプトが参照するCUDA_HOMEを設定
@@ -112,8 +112,10 @@
             export EXTRA_LDFLAGS="-L/lib -L${cudaPackages.cudatoolkit}/lib"
             export EXTRA_CCFLAGS="-I/usr/include -I${cudaPackages.cudatoolkit}/include"
 
-            # npmグローバルパスをPATHに追加
-            export PATH="$HOME/.npm-global/bin:$PATH"
+            # npmグローバルインストール先を設定
+            export NPM_CONFIG_PREFIX="''${HOME}/.npm-global"
+            export PATH="''${HOME}/.npm-global/bin:$PATH"
+            mkdir -p "''${HOME}/.npm-global/bin"
 
             # CUDAコンパイラのPATH追加
             export PATH="${cudaPackages.cuda_nvcc}/bin:$PATH"
