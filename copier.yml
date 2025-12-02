@@ -76,6 +76,12 @@ use_nix:
   help: "Nix + direnv による開発環境管理を使用しますか？"
   default: true
 
+setup_direnv_hook:
+  type: bool
+  help: "シェル設定ファイル（~/.bashrc or ~/.zshrc）にdirenv hookを自動追加しますか？"
+  default: false
+  when: "{{ use_nix }}"
+
 # ============================================================================
 # User questions - PyTorch/CUDA configuration
 # ============================================================================
@@ -164,6 +170,18 @@ _exclude:
 # ============================================================================
 
 _tasks:
+  - "git init -b main"
+  - |
+    {% if use_nix and setup_direnv_hook %}
+    # シェル設定ファイルへのdirenv hook追加
+    for rcfile in ~/.bashrc ~/.zshrc; do
+      if [ -f "$rcfile" ] && ! grep -q "direnv hook" "$rcfile"; then
+        shell=$(basename "$rcfile" | sed 's/^\.//;s/rc$//')
+        echo 'eval "$(direnv hook '"$shell"')"' >> "$rcfile"
+        echo "✅ Added direnv hook to $rcfile"
+      fi
+    done
+    {% endif %}
   - |
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -188,17 +206,26 @@ _tasks:
     {% if use_pytest %}echo "   • Pytest:     Enabled (test framework)"{% endif %}
     echo ""
     {% if use_nix %}
-    echo "⚠️  IMPORTANT: NixOS Users"
+    echo "⚠️  IMPORTANT: Setup Required"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "Before proceeding, you MUST configure your system:"
+    {% if not setup_direnv_hook %}
+    echo "📌 Step 1: Enable direnv (REQUIRED for auto-activation)"
     echo ""
-    echo "1. Edit /etc/nixos/configuration.nix to enable:"
+    echo "Add this line to your shell configuration file:"
+    echo "  ~/.bashrc (for Bash):  eval \"\$(direnv hook bash)\""
+    echo "  ~/.zshrc (for Zsh):    eval \"\$(direnv hook zsh)\""
+    echo ""
+    echo "Then reload your shell:  source ~/.bashrc  (or ~/.zshrc)"
+    echo ""
+    {% endif %}
+    echo "📌 {% if setup_direnv_hook %}Step 1{% else %}Step 2{% endif %}: NixOS System Configuration (NixOS users only)"
+    echo ""
+    echo "Edit /etc/nixos/configuration.nix to enable:"
     echo "   • NVIDIA drivers (services.xserver.videoDrivers)"
     echo "   • hardware.opengl.enable = true"
     echo "   • programs.nix-ld.enable = true"
     echo ""
-    echo "2. Apply the configuration:"
-    echo "   sudo nixos-rebuild switch"
+    echo "Then apply: sudo nixos-rebuild switch"
     echo ""
     echo "📖 See docs/NIX_SETUP.md for detailed instructions"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
