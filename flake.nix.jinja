@@ -140,6 +140,22 @@
               }
             fi
 
+            # OpenAI Codexのインストール確認
+            if ! command -v codex &> /dev/null; then
+              echo -e "''${YELLOW}Installing OpenAI Codex...''${NC}"
+              npm install -g @openai/codex 2>/dev/null || {
+                echo -e "''${YELLOW}Note: OpenAI Codex installation failed. You may need to install it manually.''${NC}"
+              }
+            fi
+
+            # Gemini CLIのインストール確認
+            if ! command -v gemini &> /dev/null; then
+              echo -e "''${YELLOW}Installing Gemini CLI...''${NC}"
+              npm install -g @google/gemini-cli 2>/dev/null || {
+                echo -e "''${YELLOW}Note: Gemini CLI installation failed. You may need to install it manually.''${NC}"
+              }
+            fi
+
             echo ""
             echo "=================================================="
             echo -e "''${GREEN}PyTorch/CUDA Development Environment Ready''${NC}"
@@ -149,10 +165,17 @@
             echo "CUDA Toolkit: ${cudaPackages.cudatoolkit.version or "default"}"
             echo "PyTorch:     {{ pytorch_version }}"
             echo "Node.js:     $(node --version)"
+            echo "npm:         $(npm --version)"
 
-            # CLIツールのバージョン確認
+            # CLIツールのバージョン確認（インストール済みの場合のみ）
             if command -v claude &> /dev/null; then
               echo "Claude Code: $(claude --version 2>/dev/null || echo 'installed')"
+            fi
+            if command -v codex &> /dev/null; then
+              echo "OpenAI Codex: $(codex --version 2>/dev/null || echo 'installed')"
+            fi
+            if command -v gemini &> /dev/null; then
+              echo "Gemini CLI:  $(gemini --version 2>/dev/null || echo 'installed')"
             fi
 
             echo ""
@@ -166,7 +189,15 @@
             echo "  3. flash-attn等のビルドが必要なパッケージ:"
             echo "     uv add flash-attn --no-build-isolation"
             echo ""
-            echo "  ドキュメント: docs/CUDA_SETUP.md を参照"
+            echo "  AI CLIs:"
+            echo "     claude                           # Claude Code CLI"
+            echo "     codex                            # OpenAI Codex"
+            echo "     gemini                           # Gemini CLI"
+            echo ""
+            echo "  ドキュメント:"
+            echo "     docs/CUDA_SETUP.md               # PyTorch/CUDA環境セットアップ"
+            echo "     docs/NIX_SETUP.md                # NixOS固有の設定"
+            echo "     docs/AI_CLI_TOOLS.md             # AI CLIツールの使い方"
             echo "=================================================="
             echo ""
           '';
