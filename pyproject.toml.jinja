@@ -98,28 +98,6 @@ show_missing = true
 skip_covered = false
 {% endif -%}
 
-{% if use_mypy -%}
-# mypy - 静的型チェッカー
-# https://mypy.readthedocs.io/
-[tool.mypy]
-python_version = "{{ python_version }}"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-
-# Third-party packages without type stubs
-[[tool.mypy.overrides]]
-module = [
-    "torch.*",
-    "torchvision.*",
-{%- if use_torchaudio %}
-    "torchaudio.*",
-{%- endif %}
-]
-ignore_missing_imports = true
-{% endif -%}
-
 # ============================================================================
 # Dependency Groups (PEP 735)
 # https://peps.python.org/pep-0735/
@@ -145,8 +123,5 @@ dev = [
 {%- endif %}
 {%- if use_ty %}
     "ty",
-{%- endif %}
-{%- if use_mypy %}
-    "mypy>=1.0",
 {%- endif %}
 ]

@@ -61,11 +61,6 @@ use_pytest:
   help: "Pytest (テストフレームワーク) を使用しますか？"
   default: true
 
-use_mypy:
-  type: bool
-  help: "mypy (型チェッカー) を使用しますか？"
-  default: false
-
 use_github_actions:
   type: bool
   help: "GitHub Actions CI/CDを設定しますか？"
@@ -171,6 +166,7 @@ _exclude:
 
 _tasks:
   - "git init -b main"
+  - "git add ."
   - |
     {% if use_nix and setup_direnv_hook %}
     # シェル設定ファイルへのdirenv hook追加
@@ -182,113 +178,61 @@ _tasks:
       fi
     done
     {% endif %}
+  - "uv venv"
+  - "uv lock"
+  - "git add uv.lock"
+  - "uv sync"
   - |
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "🎉 PyTorch/CUDA Development Environment Created!"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "📦 Project: {{ project_name }}"
-    echo "📁 Package: {{ package_name }}"
-    echo ""
-    echo "🔥 GPU/CUDA Configuration:"
-    echo "   • PyTorch:    {{ pytorch_version }}"
-    echo "   • CUDA:       {{ cuda_version }}"
-    echo "   • cuDNN:      {{ cudnn_version }}"
-    {% if use_torchvision %}echo "   • torchvision: Enabled"{% endif %}
-    {% if use_torchaudio %}echo "   • torchaudio:  Enabled"{% endif %}
-    echo ""
-    echo "🐍 Python Environment:"
-    echo "   • Python:     {{ python_version }}+"
-    {% if use_ruff %}echo "   • Ruff:       Enabled (linter/formatter)"{% endif %}
-    {% if use_ty %}echo "   • ty:         Enabled (type checker)"{% endif %}
-    {% if use_mypy %}echo "   • mypy:       Enabled (type checker)"{% endif %}
-    {% if use_pytest %}echo "   • Pytest:     Enabled (test framework)"{% endif %}
-    echo ""
-    {% if use_nix %}
-    echo "⚠️  IMPORTANT: Setup Required"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    {% if not setup_direnv_hook %}
-    echo "📌 Step 1: Enable direnv (REQUIRED for auto-activation)"
-    echo ""
-    echo "Add this line to your shell configuration file:"
-    echo "  ~/.bashrc (for Bash):  eval \"\$(direnv hook bash)\""
-    echo "  ~/.zshrc (for Zsh):    eval \"\$(direnv hook zsh)\""
-    echo ""
-    echo "Then reload your shell:  source ~/.bashrc  (or ~/.zshrc)"
-    echo ""
-    {% endif %}
-    echo "📌 {% if setup_direnv_hook %}Step 1{% else %}Step 2{% endif %}: NixOS System Configuration (NixOS users only)"
-    echo ""
-    echo "Edit /etc/nixos/configuration.nix to enable:"
-    echo "   • NVIDIA drivers (services.xserver.videoDrivers)"
-    echo "   • hardware.opengl.enable = true"
-    echo "   • programs.nix-ld.enable = true"
-    echo ""
-    echo "Then apply: sudo nixos-rebuild switch"
-    echo ""
-    echo "📖 See docs/NIX_SETUP.md for detailed instructions"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    {% endif %}
-    echo "🚀 Next Steps:"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    {% if use_nix %}
-    echo "1. Activate the Nix environment:"
-    echo "   direnv allow"
-    echo "   # The environment will auto-activate and show GPU status"
-    echo ""
-    echo "2. Install dependencies:"
-    {% else %}
-    echo "1. Create a virtual environment:"
-    echo "   uv venv"
-    echo "   source .venv/bin/activate  # or .venv\\Scripts\\activate on Windows"
-    echo ""
-    echo "2. Install dependencies:"
-    {% endif %}
-    echo "   uv sync"
-    echo ""
-    echo "3. Verify CUDA availability:"
-    echo "   uv run python -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}')\""
-    echo ""
-    {% if use_pytest %}
-    echo "4. Run tests:"
-    echo "   uv run pytest"
-    echo ""
-    {% endif %}
-    echo "📚 Documentation:"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    {% if use_nix %}
-    echo "   • docs/NIX_SETUP.md   - NixOS-specific setup (REQUIRED)"
-    {% endif %}
-    echo "   • docs/CUDA_SETUP.md  - PyTorch/CUDA environment guide"
-    echo "   • README.md           - Project overview and usage"
-    echo ""
-    echo "💡 Useful Commands:"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "   • uv add <package>              - Add a dependency"
-    echo "   • uv add --dev <package>        - Add a dev dependency"
-    echo "   • uv add flash-attn --no-build-isolation  - Add packages that need compilation"
-    {% if use_pytest %}
-    echo "   • uv run pytest                 - Run tests"
-    echo "   • uv run pytest --cov=src       - Run tests with coverage"
-    {% endif %}
+    set -e
     {% if use_ruff %}
-    echo "   • uv run ruff check .           - Lint code"
-    echo "   • uv run ruff format .          - Format code"
+    echo "🔍 Ruff check..."
+    uv run ruff check . --fix
+    echo "✨ Ruff format..."
+    uv run ruff format .
     {% endif %}
     {% if use_ty %}
-    echo "   • uv run ty check               - Type check with ty"
+    echo "🔎 Type checking..."
+    uv run ty check
     {% endif %}
-    {% if use_mypy %}
-    echo "   • uv run mypy src               - Type check with mypy"
+    {% if use_pytest %}
+    echo "🧪 Running tests..."
+    uv run pytest
     {% endif %}
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✨ Happy GPU-accelerated deep learning! ✨"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
+    echo "✅ All quality checks passed!"
+
+  # 成功メッセージ
+  - |
+    echo "
+    ============================================================
+    🎉 PyTorch/CUDA プロジェクトが正常に作成されました！
+    ============================================================
+
+    📦 Project: {{ project_name }}
+    🔥 PyTorch: {{ pytorch_version }} + CUDA {{ cuda_version }}
+
+    次のステップ:
+      1. プロジェクトディレクトリに移動:
+         cd {{ project_name }}
+
+      2. 初回コミット (ファイルは既にステージング済み):
+         git commit -m \"chore: initial commit\"
+
+      3. 開発を開始 (仮想環境は既にセットアップ済み):
+         uv add <package-name>      # 依存関係の追加
+         uv run pytest              # テストの実行
+         uv run ruff format .       # コードフォーマット
+         uv run ty check            # 型チェック
+
+      4. CUDA動作確認:
+         uv run python -c 'import torch; print(f\"CUDA: {torch.cuda.is_available()}\")'
+
+    {% if use_nix %}
+    📚 NixOS users: docs/NIX_SETUP.md を参照してください
+    {% endif %}
+    📖 詳細: docs/CUDA_SETUP.md
+
+    ============================================================
+    "
 
 # ============================================================================
 # Template metadata

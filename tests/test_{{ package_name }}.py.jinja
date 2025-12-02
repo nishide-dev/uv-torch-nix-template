@@ -58,7 +58,12 @@ class TestCUDA:
     def test_cuda_check_structure(self) -> None:
         """Test that CUDA check returns expected structure."""
         result = check_cuda()
-        expected_keys = {"cuda_available", "cuda_version", "device_count", "device_name"}
+        expected_keys = {
+            "cuda_available",
+            "cuda_version",
+            "device_count",
+            "device_name",
+        }
         assert set(result.keys()) == expected_keys
 
 {%- else %}
