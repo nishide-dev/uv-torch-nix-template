@@ -11,10 +11,11 @@
 
 ### 🔥 PyTorch/CUDA統合
 
-- **CUDAバージョン管理**: Nixで固定されたCUDA環境
-- **PyTorchバージョン選択**: 任意のPyTorchバージョンを指定可能
+- **プリセットシステム**: 16種類の検証済みPyTorch/CUDA組み合わせから選択可能
+- **CUDAバージョン管理**: Nixで固定されたCUDA環境（CUDA 13.0/12.8/12.6/12.4/12.1/11.8をサポート）
+- **PyTorchバージョン選択**: 最新版（2.9.0）から旧版まで対応
 - **自動インデックス設定**: `pyproject.toml`にPyTorch専用インデックスを自動生成
-- **cuDNN統合**: cuDNNも自動でセットアップ
+- **cuDNN統合**: NVIDIA公式互換性マトリクスに基づいた正確なバージョン管理
 - **torchvision/torchaudio**: オプションで追加可能
 
 ### 🐧 NixOS完全対応
@@ -74,12 +75,20 @@ uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template .
 
 対話的に以下を設定：
 
-- **PyTorchバージョン**: 例: `2.5.1`
-- **CUDAバージョン**: 例: `12.4`
-- **cuDNNバージョン**: 例: `9.1.0`
-- **PyTorch CUDA architecture**: 例: `cu124`（空白で自動生成）
+- **PyTorch + CUDAプリセット**: 16種類から選択可能
+  - `PyTorch 2.9.0 + CUDA 12.6` (最新・推奨) ← デフォルト
+  - `PyTorch 2.9.0 + CUDA 13.0`
+  - `PyTorch 2.8.0 + CUDA 12.6/12.8`
+  - `PyTorch 2.7.1 + CUDA 12.6/11.8`
+  - `PyTorch 2.6.0 + CUDA 12.4/11.8`
+  - `PyTorch 2.5.1 + CUDA 12.4/12.1/11.8`
+  - `PyTorch 2.4.1 + CUDA 12.4/12.1/11.8`
+  - `PyTorch 2.3.1 + CUDA 12.1/11.8`
+  - `Custom` (手動設定)
 - **torchvision**: 必要なら `yes`
 - **torchaudio**: 必要なら `yes`
+
+**注**: プリセットを選択すると、PyTorch/CUDA/cuDNNのバージョンが自動的に設定されます。手動で設定したい場合は`Custom`を選択してください。
 
 #### ステップ3: 環境構築とPyTorchインストール
 
@@ -100,24 +109,25 @@ if torch.cuda.is_available():
 "
 ```
 
-**注**: テンプレート生成時に指定したバージョンに基づき、`pyproject.toml`に自動的にPyTorchインデックスが設定されます。
+**注**: プリセットまたはカスタム設定で指定したバージョンに基づき、`pyproject.toml`に自動的にPyTorchインデックスが設定されます。
 
-期待される出力：
+期待される出力（PyTorch 2.9.0 + CUDA 12.6の場合）：
 
 ```
-PyTorch: 2.5.1+cu124
+PyTorch: 2.9.0+cu126
 CUDA available: True
-GPU: NVIDIA GeForce RTX 4090
+GPU: NVIDIA GeForce RTX 4060 Ti
 ```
 
 ## 📝 生成時の質問
 
 | 質問 | 説明 | デフォルト | 例 |
 |-----|------|-----------|-----|
-| `pytorch_version` | PyTorchバージョン | `2.5.1` | `2.4.1`, `2.3.1` |
-| `cuda_version` | CUDAバージョン | `12.4` | `12.1`, `11.8` |
-| `cudnn_version` | cuDNNバージョン | `9.1.0` | `8.9.7`, `8.9.2` |
-| `pytorch_cuda_arch` | PyTorch CUDA architecture | 自動生成 | `cu124`, `cu121`, `cu118` |
+| `pytorch_cuda_preset` | PyTorch + CUDAプリセット | `PyTorch 2.9.0 + CUDA 12.6` | 16種類から選択 |
+| `pytorch_version` | PyTorchバージョン（Customのみ） | `2.9.0` | `2.8.0`, `2.7.1` |
+| `cuda_version` | CUDAバージョン（Customのみ） | `12.6` | `13.0`, `12.8`, `11.8` |
+| `cudnn_version` | cuDNNバージョン（Customのみ） | `9.16.0` | `9.1.0`, `8.9.7` |
+| `pytorch_cuda_arch` | PyTorch CUDA architecture | 自動生成 | `cu126`, `cu124`, `cu118` |
 | `use_torchvision` | torchvisionを含めるか | `true` | - |
 | `use_torchaudio` | torchaudioを含めるか | `false` | - |
 | `additional_cuda_libs` | 追加のCUDAライブラリ | なし | `nccl,cutlass` |
@@ -305,27 +315,40 @@ uv-torch-nix-template (拡張)
 ### CUDA
 
 Nixpkgsでサポートされているバージョン（変動するため`nix search nixpkgs cudaPackages`で確認）：
-- CUDA 12.1（推奨）
-- CUDA 11.8（安定）
+- CUDA 13.0（最新）
+- CUDA 12.8/12.6/12.4/12.1（推奨）
+- CUDA 11.8（安定・旧GPU対応）
 - その他のバージョン（nixpkgsの対応状況に依存）
 
-**注**: CUDA 12.4等の新しいバージョンはnixpkgsから削除されている場合があります。詳細は[docs/NIX_SETUP.md](docs/NIX_SETUP.md)参照。
+**注**: 新しいCUDAバージョンはnixpkgsから削除されている場合があります。詳細は[docs/NIX_SETUP.md](docs/NIX_SETUP.md)参照。
 
 ### PyTorch
 
 任意のバージョンを指定可能（PyTorchの公式リリースに依存）：
-- 2.5.x（最新）
+- 2.9.x（最新）
+- 2.8.x
+- 2.7.x
+- 2.6.x
+- 2.5.x
 - 2.4.x
 - 2.3.x
 - それ以前のバージョン
 
 ### 推奨バージョン組み合わせ
 
-| PyTorch | CUDA | cuDNN | GPU Architecture |
-|---------|------|-------|------------------|
-| 2.5.1   | 12.4, 12.1 | 9.1.0 | RTX 40xx (Ada) |
-| 2.4.1   | 12.1, 11.8 | 8.9.7 | RTX 30xx (Ampere) |
-| 2.3.1   | 12.1, 11.8 | 8.9.2 | 汎用 |
+| PyTorch | CUDA | cuDNN | GPU Architecture | 備考 |
+|---------|------|-------|------------------|------|
+| 2.9.0   | 12.6, 13.0 | 9.16.0 | RTX 40xx/30xx | 最新・推奨 |
+| 2.8.0   | 12.6, 12.8 | 9.16.0 | RTX 40xx/30xx | 安定版 |
+| 2.7.1   | 12.6, 11.8 | 9.16.0/8.9.7 | RTX 40xx/30xx | 安定版 |
+| 2.6.0   | 12.4, 11.8 | 9.1.0/8.9.7 | RTX 40xx/30xx | 安定版 |
+| 2.5.1   | 12.4, 12.1, 11.8 | 9.1.0/8.9.7 | 汎用 | 後方互換性 |
+| 2.4.1   | 12.4, 12.1, 11.8 | 8.9.7 | 汎用 | 旧プロジェクト |
+| 2.3.1   | 12.1, 11.8 | 8.9.2 | 汎用 | 旧プロジェクト |
+
+**参考**:
+- [PyTorch公式バージョン情報](https://pytorch.org/get-started/previous-versions/)
+- [NVIDIA cuDNN互換性マトリクス](https://docs.nvidia.com/deeplearning/cudnn/backend/latest/reference/support-matrix.html)
 
 ## 📄 ライセンス
 
@@ -334,17 +357,3 @@ MIT License
 ## 💬 コントリビューション
 
 Issue/PRは大歓迎です！
-
-特に以下の改善案を募集中：
-- 他のディープラーニングフレームワーク（JAX、TensorFlowなど）への対応
-- マルチGPU設定のベストプラクティス
-- Docker統合
-- CI/CDでのGPUテスト
-
-## 🙏 謝辞
-
-このテンプレートは以下のプロジェクトに依存しています：
-- [uv](https://github.com/astral-sh/uv) by Astral
-- [Nix](https://nixos.org/)
-- [PyTorch](https://pytorch.org/)
-- [Copier](https://copier.readthedocs.io/)
