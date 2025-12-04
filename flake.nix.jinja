@@ -170,8 +170,20 @@
 
             # --- ライブラリパス (LD_LIBRARY_PATH) の構築 ---
             # これにより、TorchのWheelがNixストア内のライブラリを見つけられるようにする
-            # 【最重要】/run/opengl-driver/lib を含めることでlibcuda.soが見つかる
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath (systemDependencies ++ cudaLibs)}:/run/opengl-driver/lib:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+            # Nixストア内のCUDAライブラリパス
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath (systemDependencies ++ cudaLibs)}:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+            # 【最重要】NVIDIAドライバーのlibcuda.soパスを動的に検出して追加
+            # - NixOS: /run/opengl-driver/lib
+            # - その他のLinux: ldconfigで検出
+            if [ -d "/run/opengl-driver/lib" ]; then
+              export LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH"
+            else
+              LIBCUDA_DIR=$(ldconfig -p 2>/dev/null | grep -oP 'libcuda.so.1 .* => \K[^ ]+' | head -1 | xargs dirname 2>/dev/null || echo "")
+              if [ -n "$LIBCUDA_DIR" ] && [ -d "$LIBCUDA_DIR" ]; then
+                export LD_LIBRARY_PATH="$LIBCUDA_DIR:$LD_LIBRARY_PATH"
+              fi
+            fi
 
             # libstdc++を優先的に使用（ABI互換性のため）
             export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"
