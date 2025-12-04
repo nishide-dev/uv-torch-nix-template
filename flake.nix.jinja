@@ -1,4 +1,40 @@
 {
+{# Extract values from preset #}
+{% if pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.4' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.1' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-11.8' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.4' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.1' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-11.8' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-12.1' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.2' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-11.8' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.2' %}
+{# else: use custom values from user input #}
+{% endif %}
+
   description = "Deep Learning Environment: uv + PyTorch + Managed CUDA (NixOS Compatible)";
 
   inputs = {
@@ -127,81 +163,67 @@
             fi
             source .venv/bin/activate
 
-            # AI CLIツールのインストール確認とインストール
-            echo ""
-            echo "=================================================="
-            echo -e "''${BLUE}Checking AI CLI Tools...''${NC}"
-            echo "=================================================="
-
-            # Claude Code CLIのインストール確認
+            # AI CLIツールを静かにインストール（未インストールの場合のみ）
             if ! command -v claude &> /dev/null; then
-              echo -e "''${YELLOW}Installing Claude Code CLI...''${NC}"
-              npm install -g @anthropic-ai/claude-code 2>/dev/null || {
-                echo -e "''${YELLOW}Falling back to curl installation method...''${NC}"
-                curl -fsSL https://claude.ai/install.sh | bash
-              }
+              npm install -g @anthropic-ai/claude-code &>/dev/null || curl -fsSL https://claude.ai/install.sh | bash &>/dev/null
             fi
-
-            # OpenAI Codexのインストール確認
             if ! command -v codex &> /dev/null; then
-              echo -e "''${YELLOW}Installing OpenAI Codex...''${NC}"
-              npm install -g @openai/codex 2>/dev/null || {
-                echo -e "''${YELLOW}Note: OpenAI Codex installation failed. You may need to install it manually.''${NC}"
-              }
+              npm install -g @openai/codex &>/dev/null || true
             fi
-
-            # Gemini CLIのインストール確認
             if ! command -v gemini &> /dev/null; then
-              echo -e "''${YELLOW}Installing Gemini CLI...''${NC}"
-              npm install -g @google/gemini-cli 2>/dev/null || {
-                echo -e "''${YELLOW}Note: Gemini CLI installation failed. You may need to install it manually.''${NC}"
-              }
+              npm install -g @google/gemini-cli &>/dev/null || true
             fi
 
-            echo ""
-            echo "=================================================="
-            echo -e "''${GREEN}PyTorch/CUDA Development Environment Ready''${NC}"
-            echo "=================================================="
-            echo "Python:      $(python --version)"
-            echo "uv:          $(uv --version)"
-            echo "CUDA Toolkit: ${cudaPackages.cudatoolkit.version or "default"}"
-            echo "PyTorch:     {{ pytorch_version }}"
-            echo "Node.js:     $(node --version)"
-            echo "npm:         $(npm --version)"
-
-            # CLIツールのバージョン確認（インストール済みの場合のみ）
-            if command -v claude &> /dev/null; then
-              echo "Claude Code: $(claude --version 2>/dev/null || echo 'installed')"
-            fi
-            if command -v codex &> /dev/null; then
-              echo "OpenAI Codex: $(codex --version 2>/dev/null || echo 'installed')"
-            fi
-            if command -v gemini &> /dev/null; then
-              echo "Gemini CLI:  $(gemini --version 2>/dev/null || echo 'installed')"
+            # GPU情報の取得
+            GPU_NAME=""
+            if command -v nvidia-smi &> /dev/null; then
+              GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
             fi
 
-            echo ""
-            echo "次のステップ:"
-            echo "  1. PyTorchのインストール:"
-            echo "     uv sync                          # pyproject.tomlから依存関係をインストール"
-            echo ""
-            echo "  2. GPU動作確認:"
-            echo "     uv run python -c 'import torch; print(f\"CUDA: {torch.cuda.is_available()}\")'"
-            echo ""
-            echo "  3. flash-attn等のビルドが必要なパッケージ:"
-            echo "     uv add flash-attn --no-build-isolation"
-            echo ""
-            echo "  AI CLIs:"
-            echo "     claude                           # Claude Code CLI"
-            echo "     codex                            # OpenAI Codex"
-            echo "     gemini                           # Gemini CLI"
-            echo ""
-            echo "  ドキュメント:"
-            echo "     docs/CUDA_SETUP.md               # PyTorch/CUDA環境セットアップ"
-            echo "     docs/NIX_SETUP.md                # NixOS固有の設定"
-            echo "     docs/AI_CLI_TOOLS.md             # AI CLIツールの使い方"
-            echo "=================================================="
-            echo ""
+            # バージョン情報
+            PYTHON_VER=$(python --version 2>&1 | cut -d' ' -f2)
+            UV_VER=$(uv --version 2>&1 | cut -d' ' -f2)
+
+            if [ "''${VERBOSE_INIT:-0}" = "1" ]; then
+              # 詳細モード
+              echo ""
+              echo "=================================================="
+              echo -e "''${GREEN}PyTorch/CUDA Development Environment Ready''${NC}"
+              echo "=================================================="
+              echo "Python:      $PYTHON_VER"
+              echo "uv:          $UV_VER"
+              echo "CUDA:        {{ cuda_version }}"
+              echo "PyTorch:     {{ pytorch_version }}"
+              [ -n "$GPU_NAME" ] && echo "GPU:         $GPU_NAME"
+              echo "Node.js:     $(node --version)"
+              echo "npm:         $(npm --version)"
+
+              if command -v claude &> /dev/null; then
+                echo "claude:      $(claude --version 2>/dev/null || echo 'installed')"
+              fi
+              if command -v codex &> /dev/null; then
+                echo "codex:       $(codex --version 2>/dev/null || echo 'installed')"
+              fi
+              if command -v gemini &> /dev/null; then
+                echo "gemini:      $(gemini --version 2>/dev/null || echo 'installed')"
+              fi
+
+              echo ""
+              echo "Commands:"
+              echo "  uv sync                          # Install dependencies"
+              echo "  uv run python -c 'import torch; print(torch.cuda.is_available())'  # Check CUDA"
+              echo "  uv add flash-attn --no-build-isolation  # Add packages with compilation"
+              echo "  claude / codex / gemini          # AI CLI tools"
+              echo ""
+              echo "Docs: docs/CUDA_SETUP.md, docs/NIX_SETUP.md, docs/AI_CLI_TOOLS.md"
+              echo "=================================================="
+              echo ""
+            else
+              # 簡潔モード（デフォルト）
+              GPU_INFO=""
+              [ -n "$GPU_NAME" ] && GPU_INFO=" (GPU: $GPU_NAME)"
+              echo -e "''${GREEN}✓''${NC} PyTorch {{ pytorch_version }} + CUDA {{ cuda_version }}$GPU_INFO"
+            fi
           '';
         };
       }

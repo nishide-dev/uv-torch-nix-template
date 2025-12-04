@@ -49,6 +49,10 @@ htmlcov/
 result
 result-*
 
+# direnv - ignore in template repo to avoid "blocked" messages
+.envrc
+.direnv/
+
 # OS
 .DS_Store
 Thumbs.db

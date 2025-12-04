@@ -81,40 +81,45 @@ setup_direnv_hook:
 # User questions - PyTorch/CUDA configuration
 # ============================================================================
 #
-# 【CUDA/PyTorchバージョン対応表】
-# ┌─────────────┬─────────────┬──────────────┬─────────────────────┐
-# │ PyTorch     │ CUDA        │ cuDNN        │ 推奨環境            │
-# ├─────────────┼─────────────┼──────────────┼─────────────────────┤
-# │ 2.5.1       │ 12.4, 12.1  │ 9.1.0        │ RTX 40xx (Ada)      │
-# │ 2.4.1       │ 12.1, 11.8  │ 8.9.7        │ RTX 30xx (Ampere)   │
-# │ 2.3.1       │ 12.1, 11.8  │ 8.9.2        │ RTX 30xx (Ampere)   │
-# │ 2.2.2       │ 12.1, 11.8  │ 8.9.2        │ 汎用                │
-# │ 2.1.2       │ 12.1, 11.8  │ 8.9.2        │ 古いGPU対応         │
-# └─────────────┴─────────────┴──────────────┴─────────────────────┘
+# 【PyTorch公式サポートバージョン】
+# https://pytorch.org/get-started/previous-versions/
 #
-# 【注意事項】
-# - NixOS上で使用する場合は docs/NIX_SETUP.md を必ず参照してください
-# - nixpkgsで利用可能なCUDAバージョンは限られています（11.8, 12.1等）
-# - CUDA 12.4以降は nixpkgs の対応状況を確認してください
-# - GPUアーキテクチャに応じて適切なCUDAバージョンを選択してください
-#
-# 詳細: https://pytorch.org/get-started/locally/
+# プリセットから選択することで、互換性のある組み合わせを自動設定できます。
+# Customを選択した場合は、手動で互換性のあるバージョンを指定してください。
 # ============================================================================
+
+pytorch_cuda_preset:
+  type: str
+  help: "PyTorch + CUDAのプリセットを選択してください"
+  default: "pytorch-2.5.1-cuda-12.4"
+  choices:
+    "PyTorch 2.5.1 + CUDA 12.4 (最新・推奨)": "pytorch-2.5.1-cuda-12.4"
+    "PyTorch 2.5.1 + CUDA 12.1": "pytorch-2.5.1-cuda-12.1"
+    "PyTorch 2.5.1 + CUDA 11.8": "pytorch-2.5.1-cuda-11.8"
+    "PyTorch 2.4.1 + CUDA 12.4": "pytorch-2.4.1-cuda-12.4"
+    "PyTorch 2.4.1 + CUDA 12.1": "pytorch-2.4.1-cuda-12.1"
+    "PyTorch 2.4.1 + CUDA 11.8": "pytorch-2.4.1-cuda-11.8"
+    "PyTorch 2.3.1 + CUDA 12.1": "pytorch-2.3.1-cuda-12.1"
+    "PyTorch 2.3.1 + CUDA 11.8": "pytorch-2.3.1-cuda-11.8"
+    "Custom (手動設定)": "custom"
 
 pytorch_version:
   type: str
   help: "PyTorchバージョンを入力してください（例: 2.5.1, 2.4.1, 2.3.1）"
   default: "2.5.1"
+  when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 cuda_version:
   type: str
   help: "CUDAバージョンを入力してください（例: 12.4, 12.1, 11.8）｜NixOS: docs/NIX_SETUP.md参照"
   default: "12.4"
+  when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 cudnn_version:
   type: str
   help: "cuDNNバージョンを入力してください（例: 9.1.0, 8.9.7）"
   default: "9.1.0"
+  when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 pytorch_cuda_arch:
   type: str
