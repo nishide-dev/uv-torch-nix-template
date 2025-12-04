@@ -91,9 +91,17 @@ setup_direnv_hook:
 pytorch_cuda_preset:
   type: str
   help: "PyTorch + CUDAのプリセットを選択してください"
-  default: "pytorch-2.5.1-cuda-12.4"
+  default: "pytorch-2.9.0-cuda-12.6"
   choices:
-    "PyTorch 2.5.1 + CUDA 12.4 (最新・推奨)": "pytorch-2.5.1-cuda-12.4"
+    "PyTorch 2.9.0 + CUDA 12.6 (最新・推奨)": "pytorch-2.9.0-cuda-12.6"
+    "PyTorch 2.9.0 + CUDA 13.0": "pytorch-2.9.0-cuda-13.0"
+    "PyTorch 2.8.0 + CUDA 12.6": "pytorch-2.8.0-cuda-12.6"
+    "PyTorch 2.8.0 + CUDA 12.8": "pytorch-2.8.0-cuda-12.8"
+    "PyTorch 2.7.1 + CUDA 12.6": "pytorch-2.7.1-cuda-12.6"
+    "PyTorch 2.7.1 + CUDA 11.8": "pytorch-2.7.1-cuda-11.8"
+    "PyTorch 2.6.0 + CUDA 12.4": "pytorch-2.6.0-cuda-12.4"
+    "PyTorch 2.6.0 + CUDA 11.8": "pytorch-2.6.0-cuda-11.8"
+    "PyTorch 2.5.1 + CUDA 12.4": "pytorch-2.5.1-cuda-12.4"
     "PyTorch 2.5.1 + CUDA 12.1": "pytorch-2.5.1-cuda-12.1"
     "PyTorch 2.5.1 + CUDA 11.8": "pytorch-2.5.1-cuda-11.8"
     "PyTorch 2.4.1 + CUDA 12.4": "pytorch-2.4.1-cuda-12.4"
@@ -105,20 +113,20 @@ pytorch_cuda_preset:
 
 pytorch_version:
   type: str
-  help: "PyTorchバージョンを入力してください（例: 2.5.1, 2.4.1, 2.3.1）"
-  default: "2.5.1"
+  help: "PyTorchバージョンを入力してください（例: 2.9.0, 2.8.0, 2.7.1, 2.6.0）"
+  default: "2.9.0"
   when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 cuda_version:
   type: str
-  help: "CUDAバージョンを入力してください（例: 12.4, 12.1, 11.8）｜NixOS: docs/NIX_SETUP.md参照"
-  default: "12.4"
+  help: "CUDAバージョンを入力してください（例: 13.0, 12.8, 12.6, 12.4, 11.8）｜NixOS: docs/NIX_SETUP.md参照"
+  default: "12.6"
   when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 cudnn_version:
   type: str
-  help: "cuDNNバージョンを入力してください（例: 9.1.0, 8.9.7）"
-  default: "9.1.0"
+  help: "cuDNNバージョンを入力してください（例: 9.16.0, 9.1.0, 8.9.7）｜対応: https://docs.nvidia.com/deeplearning/cudnn/"
+  default: "9.16.0"
   when: "{{ pytorch_cuda_preset == 'custom' }}"
 
 pytorch_cuda_arch:
