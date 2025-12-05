@@ -50,7 +50,28 @@
 
 ### 前提条件
 
-1. **Nix + direnv**: [uv-nix-template](https://github.com/nishide-dev/uv-nix-template#前提条件)のセットアップを完了
+1. **Nix + direnv**
+
+   Nixを使用すると、uvとPythonの両方が自動管理されます。
+
+   ```bash
+   # Nixのインストール
+   sh <(curl -L https://nixos.org/nix/install) --daemon
+
+   # Flakesを有効化
+   mkdir -p ~/.config/nix
+   echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+
+   # direnvのインストール
+   # macOS
+   brew install direnv
+   # Ubuntu/Debian
+   sudo apt install direnv
+
+   # シェル統合
+   echo 'eval "$(direnv hook bash)"' >> ~/.bashrc  # or zsh
+   ```
+
 2. **NVIDIAドライバー**: GPUドライバーがインストール済みであること
    ```bash
    nvidia-smi  # 動作確認
