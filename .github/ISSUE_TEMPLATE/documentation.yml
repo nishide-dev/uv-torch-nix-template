@@ -1,0 +1,76 @@
+name: Documentation
+description: ドキュメントの改善や追加
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ドキュメント改善の提案ありがとうございます！
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: ドキュメントの種類
+      description: どのドキュメントに関する提案ですか？
+      options:
+        - TEMPLATE_README.md（テンプレート使用方法）
+        - 生成されるREADME.md
+        - コード内のコメント
+        - サンプルコード
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: ドキュメントの問題点
+      description: 現在のドキュメントにどのような問題がありますか？
+      placeholder: |
+        例：
+        - ◯◯の手順が不明瞭
+        - ◯◯のコマンド例が不足
+        - ◯◯の説明に誤りがある
+        - ◯◯のユースケースが記載されていない
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 改善提案
+      description: どのように改善すべきですか？
+      placeholder: |
+        例：
+        - ◯◯の手順を詳細に記載
+        - ◯◯のコマンド例を追加
+        - ◯◯の図を追加
+    validations:
+      required: true
+
+  - type: textarea
+    id: target-audience
+    attributes:
+      label: 対象読者
+      description: この改善は誰にとって有益ですか？
+      placeholder: |
+        例：
+        - 初めてテンプレートを使う人
+        - Copierに不慣れな人
+        - CI/CD設定を理解したい人
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: コントリビューション
+      options:
+        - label: このドキュメント改善にPRで貢献できます
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: チェックリスト
+      options:
+        - label: 既存のドキュメントを確認し、この情報が記載されていないことを確認しました
+          required: true

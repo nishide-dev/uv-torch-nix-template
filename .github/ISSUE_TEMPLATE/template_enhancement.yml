@@ -1,0 +1,82 @@
+name: Template Enhancement
+description: テンプレートの品質改善（リファクタリング、最適化等）
+title: "[Enhancement]: "
+labels: ["enhancement", "template"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        テンプレートの改善提案ありがとうございます！
+
+  - type: dropdown
+    id: enhancement-area
+    attributes:
+      label: 改善箇所
+      description: どの部分を改善しますか？
+      options:
+        - Jinja2テンプレートの記述
+        - copier.yml の設定
+        - 生成されるディレクトリ構造
+        - pyproject.toml のデフォルト設定
+        - GitHub Actions ワークフロー
+        - ドキュメント
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: 現在の動作
+      description: 現在どのようになっていますか？
+      placeholder: |
+        例：
+        - 現在、README.md.jinjaは◯◯という構造になっている
+        - copier.ymlで◯◯の検証が不足している
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-behavior
+    attributes:
+      label: 提案する改善内容
+      description: どのように改善すべきですか？
+      placeholder: |
+        例：
+        - README.md.jinjaを◯◯のように整理する
+        - copier.ymlに◯◯のバリデーションを追加する
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefits
+    attributes:
+      label: 改善によるメリット
+      description: この改善によってどのような利点がありますか？
+      placeholder: |
+        例：
+        - 生成されるプロジェクトの可読性が向上
+        - テンプレート適用時のエラーを早期発見できる
+        - 保守性が向上
+    validations:
+      required: true
+
+  - type: textarea
+    id: breaking-changes
+    attributes:
+      label: 破壊的変更
+      description: この改善により、既存の動作が変わりますか？
+      placeholder: |
+        - [ ] 既存のテンプレート利用者に影響あり
+        - [ ] 生成されるファイル構造が変わる
+        - [ ] 質問項目が変わる
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: チェックリスト
+      options:
+        - label: 既存のIssueを確認し、同様の提案がないことを確認しました
+          required: true
+        - label: この改善が下位互換性を維持するか、移行パスを明確にできます
+          required: true

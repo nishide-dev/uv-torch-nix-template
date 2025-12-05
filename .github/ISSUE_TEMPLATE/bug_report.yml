@@ -1,0 +1,99 @@
+name: Bug Report
+description: テンプレート生成時のバグや問題を報告
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグ報告ありがとうございます！以下の情報を提供していただくと、問題の解決が早くなります。
+
+  - type: dropdown
+    id: bug-area
+    attributes:
+      label: バグの発生箇所
+      description: どの部分で問題が発生しましたか？
+      options:
+        - テンプレート生成時（copier copy）
+        - PyTorch/CUDA環境設定（プリセット選択）
+        - CUDA動作確認（torch.cuda.is_available()）
+        - GPU認識（nvidia-smi）
+        - Nix flake設定（flake.nix）
+        - 生成されたプロジェクトの構造
+        - pyproject.toml の設定
+        - GitHub Actions CI/CD
+        - 開発ツール設定（Ruff/ty/Pytest）
+        - ドキュメント
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 問題の説明
+      description: 何が起こりましたか？期待される動作は何ですか？
+      placeholder: |
+        例：
+        - copier copyを実行すると、エラーが発生する
+        - 生成されたpyproject.tomlの設定が不正
+        - GitHub Actionsが失敗する
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      description: 問題を再現するための手順を記載してください
+      placeholder: |
+        1. `uvx copier copy gh:your-org/uv-nix-template test-project` を実行
+        2. 以下の回答を入力:
+           - project_name: test-project
+           - python_version: 3.12
+           - ...
+        3. エラーが発生
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境情報
+      description: 実行環境の情報を記載してください
+      value: |
+        - OS: [e.g. Ubuntu 22.04, macOS 14.0, Windows 11]
+        - Copier version: [e.g. 9.0.0]
+        - uv version: [e.g. 0.4.0]
+        - Python version: [e.g. 3.12.0]
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: エラー出力
+      description: エラーメッセージやログを貼り付けてください
+      render: shell
+      placeholder: |
+        エラーメッセージをここに貼り付けてください
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 追加情報
+      description: スクリーンショットや関連する情報があれば記載してください
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: チェックリスト
+      options:
+        - label: 既存のIssueを検索し、重複していないことを確認しました
+          required: true
+        - label: 最新版のcopierとuvを使用しています
+          required: true
