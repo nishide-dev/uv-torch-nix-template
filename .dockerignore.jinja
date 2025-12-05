@@ -1,0 +1,117 @@
+# .dockerignore - Dockerビルドから除外するファイル
+
+# Nix関連（Docker内では使用しない）
+{% if use_nix %}
+flake.nix
+flake.lock
+.direnv/
+.envrc
+docs/NIX_SETUP.md
+{% endif %}
+
+# Git関連
+.git/
+.gitignore
+.gitattributes
+
+# Python環境
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# テスト・カバレッジ
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Linter・Formatter
+.mypy_cache/
+.ruff_cache/
+.ty_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ログ・一時ファイル
+*.log
+*.tmp
+.env.local
+.env.*.local
+
+# ドキュメント生成
+docs/_build/
+site/
+
+# Docker自身
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# テンプレート関連（テンプレートプロジェクトでのみ）
+copier.yml
+copier.yaml
+README.template.md
+
+# PyTorch/機械学習特有
+# 学習済みモデル・チェックポイント（大容量）
+*.pt
+*.pth
+*.ckpt
+*.pkl
+*.h5
+*.pb
+*.onnx
+weights/
+checkpoints/
+models/
+
+# データセット（大容量）
+data/
+dataset/
+datasets/
+*.csv
+*.json
+*.tfrecord
+
+# 実験ログ・可視化
+runs/
+logs/
+tensorboard/
+wandb/
+mlruns/
+outputs/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb
+
+# 画像・動画ファイル（大容量）
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.mp4
+*.avi
+*.mov

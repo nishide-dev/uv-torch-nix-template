@@ -66,6 +66,11 @@ use_github_actions:
   help: "GitHub Actions CI/CDを設定しますか？"
   default: true
 
+include_docker:
+  type: bool
+  help: "Docker環境（開発用・本番用、GPU対応）を含めますか？"
+  default: false
+
 use_nix:
   type: bool
   help: "Nix + direnv による開発環境管理を使用しますか？"
@@ -170,8 +175,13 @@ _exclude:
   - "{% if not use_ruff %}ruff.toml.jinja{% endif %}"  # Ruff未使用の場合は除外
   - "{% if not use_nix %}flake.nix.jinja{% endif %}"  # Nix未使用の場合は除外
   - "{% if not use_nix %}.envrc{% endif %}"  # Nix未使用の場合は除外
-  - "{% if not use_nix %}docs{% endif %}"  # Nix未使用の場合はdocsディレクトリ全体を除外
+  - "{% if not use_nix %}docs/NIX_SETUP.md.jinja{% endif %}"  # Nix未使用の場合はNIX_SETUP.mdを除外
   - "{% if not use_github_actions %}.github{% endif %}"  # GitHub Actions未使用の場合は除外
+  - "{% if not include_docker %}Dockerfile.dev.jinja{% endif %}"  # Docker未使用の場合は除外
+  - "{% if not include_docker %}Dockerfile.prod.jinja{% endif %}"  # Docker未使用の場合は除外
+  - "{% if not include_docker %}docker-compose.yml.jinja{% endif %}"  # Docker未使用の場合は除外
+  - "{% if not include_docker %}.dockerignore.jinja{% endif %}"  # Docker未使用の場合は除外
+  - "{% if not include_docker %}docs/DOCKER.md.jinja{% endif %}"  # Docker未使用の場合は除外
 
 # ============================================================================
 # Post-generation tasks

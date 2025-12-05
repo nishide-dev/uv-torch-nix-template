@@ -1,0 +1,551 @@
+{# Extract values from preset #}
+{% if pytorch_cuda_preset == 'pytorch-2.9.0-cuda-12.6' %}
+  {% set pytorch_version = '2.9.0' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.9.0-cuda-13.0' %}
+  {% set pytorch_version = '2.9.0' %}
+  {% set cuda_version = '13.0' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.8.0-cuda-12.6' %}
+  {% set pytorch_version = '2.8.0' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.8.0-cuda-12.8' %}
+  {% set pytorch_version = '2.8.0' %}
+  {% set cuda_version = '12.8' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.7.1-cuda-12.6' %}
+  {% set pytorch_version = '2.7.1' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.7.1-cuda-11.8' %}
+  {% set pytorch_version = '2.7.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.6.0-cuda-12.4' %}
+  {% set pytorch_version = '2.6.0' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.6.0-cuda-11.8' %}
+  {% set pytorch_version = '2.6.0' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.4' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.1' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-11.8' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.4' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.1' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-11.8' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-12.1' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-11.8' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% else %}
+  {% set pytorch_version = pytorch_version %}
+  {% set cuda_version = cuda_version %}
+  {% set cudnn_version = cudnn_version %}
+{% endif %}
+# Docker環境ガイド（GPU対応）
+
+このプロジェクトには、GPU（NVIDIA CUDA）対応の開発用と本番用の2種類のDocker環境が用意されています。
+
+**環境構成**: PyTorch {{ pytorch_version }} + CUDA {{ cuda_version }} + cuDNN {{ cudnn_version }}
+
+## 📋 目次
+
+- [概要](#概要)
+- [前提条件](#前提条件)
+- [開発環境（Dockerfile.dev）](#開発環境dockerfiledev)
+- [本番環境（Dockerfile.prod）](#本番環境dockerfileprod)
+- [docker-composeの使い方](#docker-composeの使い方)
+- [GPU動作確認](#gpu動作確認)
+- [よくある質問](#よくある質問)
+
+---
+
+## 概要
+
+### 開発環境 vs 本番環境
+
+| 項目 | 開発環境（dev） | 本番環境（prod） |
+|------|----------------|-----------------|
+| **ベースイメージ** | `nvidia/cuda:{{ cuda_version }}-cudnn{{ cudnn_version.split('.')[0] }}-devel-ubuntu22.04` | `nvidia/cuda:{{ cuda_version }}-cudnn{{ cudnn_version.split('.')[0] }}-runtime-ubuntu22.04` |
+| **CUDAツールキット** | 開発用（nvcc含む） | ランタイムのみ |
+| **依存関係** | 全依存関係（dev含む） | 本番依存関係のみ |
+| **ビルド方式** | シングルステージ | マルチステージ（最適化） |
+| **コードマウント** | ✅ ホットリロード対応 | ❌ イメージに固定 |
+| **SSH対応** | ✅ ポート2222 | ❌ |
+| **Jupyter Lab** | ✅ ポート8888 | ❌ |
+| **イメージサイズ** | 大きい（~8GB） | 小さい（~5GB） |
+| **用途** | ローカル開発・デバッグ | デプロイ・推論サーバー |
+
+{% if use_nix %}
+### Nix環境との使い分け
+
+- **Nix (推奨)**: ローカル開発、再現性重視、複数プロジェクト管理
+- **Docker**: デプロイ、CI/CD、クラウド環境、チーム共有、Nix非対応環境
+
+**ポイント**: `uv.lock` が両環境の依存関係を保証します。
+{% endif %}
+
+---
+
+## 前提条件
+
+### 必須ツール
+
+1. **Docker Desktop** または **Docker Engine**
+   ```bash
+   # インストール確認
+   docker --version
+   docker compose version
+   ```
+
+2. **NVIDIA Container Toolkit** (GPU使用のため必須)
+
+   ```bash
+   # Ubuntu/Debian の場合
+   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+     sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+   sudo apt-get update
+   sudo apt-get install -y nvidia-container-toolkit
+   sudo systemctl restart docker
+   ```
+
+   **動作確認**:
+   ```bash
+   docker run --rm --gpus all nvidia/cuda:{{ cuda_version }}-base-ubuntu22.04 nvidia-smi
+   ```
+
+   正常に動作すれば、GPUの情報が表示されます。
+
+3. **ホストのユーザーID/グループID** (開発環境用)
+   ```bash
+   # 環境変数に設定（推奨）
+   export USER_ID=$(id -u)
+   export GROUP_ID=$(id -g)
+   export USERNAME=$(whoami)
+   ```
+
+---
+
+## 開発環境（Dockerfile.dev）
+
+### 特徴
+
+- ✅ **GPU開発ツール**: nvcc（CUDA Compiler）含む
+- ✅ **ホットリロード**: ホストのコードをマウント、変更が即反映
+- ✅ **Jupyter Lab対応**: ポート8888でアクセス可能
+- ✅ **SSH対応**: リモート開発環境として利用可能
+- ✅ **全開発ツール**: {% if use_ruff %}Ruff、{% endif %}{% if use_ty %}ty、{% endif %}{% if use_pytest %}Pytest{% endif %}など全て含む
+- ✅ **uvキャッシュ永続化**: 依存関係のダウンロードを高速化
+
+### ビルド
+
+```bash
+# Docker Composeを使う場合（推奨）
+docker compose build dev
+
+# 直接ビルドする場合
+docker build -f Dockerfile.dev -t {{ project_name }}-dev \
+  --build-arg USERNAME=$(whoami) \
+  --build-arg USER_ID=$(id -u) \
+  --build-arg GROUP_ID=$(id -g) \
+  --build-arg CUDA_VERSION={{ cuda_version }} \
+  --build-arg CUDNN_MAJOR={{ cudnn_version.split('.')[0] }} \
+  .
+```
+
+### 実行
+
+```bash
+# インタラクティブシェル（GPU利用）
+docker compose run --rm dev bash
+
+# PyTorchスクリプト実行
+docker compose run --rm dev python train.py
+
+# GPU動作確認
+docker compose run --rm dev python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPUs: {torch.cuda.device_count()}')"
+
+# テスト実行
+{% if use_pytest %}
+docker compose run --rm dev pytest
+{% else %}
+docker compose run --rm dev python -m unittest
+{% endif %}
+
+# Jupyter Lab起動
+docker compose run --rm -p 8888:8888 dev jupyter lab --ip=0.0.0.0 --no-browser
+
+# TensorBoard起動
+docker compose run --rm -p 6006:6006 dev tensorboard --logdir=runs --host=0.0.0.0
+```
+
+### SSH経由でのアクセス
+
+```bash
+# コンテナをバックグラウンドで起動
+docker compose up -d dev
+
+# コンテナ内でSSHデーモンを起動
+docker compose exec dev sudo /usr/sbin/sshd
+
+# SSH公開鍵を配置
+docker compose exec -u $(whoami) dev mkdir -p ~/.ssh
+docker compose cp ~/.ssh/id_rsa.pub $(docker compose ps -q dev):/home/$(whoami)/.ssh/authorized_keys
+docker compose exec -u $(whoami) dev chmod 600 ~/.ssh/authorized_keys
+
+# SSHでアクセス
+ssh -p 2222 $(whoami)@localhost
+```
+
+---
+
+## 本番環境（Dockerfile.prod）
+
+### 特徴
+
+- ⚡ **最小イメージ**: マルチステージビルドで最適化（CUDA runtimeのみ）
+- 🔒 **セキュリティ強化**: 非rootユーザー、read-only filesystem
+- 📦 **自己完結**: 依存関係とコードを全て含む
+- 🚀 **推論最適化**: トレーニング用ツール不要
+- ♻️ **自動再起動**: `restart: unless-stopped` 設定済み
+
+### ビルド
+
+```bash
+# Docker Composeを使う場合（推奨）
+docker compose build prod
+
+# 直接ビルドする場合
+docker build -f Dockerfile.prod -t {{ project_name }}-prod \
+  --build-arg USERNAME=appuser \
+  --build-arg CUDA_VERSION={{ cuda_version }} \
+  --build-arg CUDNN_MAJOR={{ cudnn_version.split('.')[0] }} \
+  --build-arg PYTHON_VERSION={{ python_version }} \
+  .
+```
+
+### 実行
+
+```bash
+# フォアグラウンドで実行
+docker compose up prod
+
+# バックグラウンドで実行
+docker compose up -d prod
+
+# ログ確認
+docker compose logs -f prod
+
+# 停止
+docker compose down
+```
+
+### カスタムコマンド
+
+```bash
+# 推論スクリプト実行
+docker run --rm --gpus all {{ project_name }}-prod python inference.py --input data.pt
+
+# GPU動作確認
+docker run --rm --gpus all {{ project_name }}-prod python -c "import torch; print(torch.cuda.is_available())"
+
+# 環境変数を渡す
+docker run --rm --gpus all -e MODEL_PATH=/models/best.pt {{ project_name }}-prod python inference.py
+
+# ポートマッピング（APIサーバーの場合）
+docker run --rm --gpus all -p 8080:8000 {{ project_name }}-prod python server.py
+```
+
+---
+
+## docker-composeの使い方
+
+### 基本コマンド
+
+```bash
+# サービス一覧
+docker compose ps
+
+# ビルド（キャッシュなし）
+docker compose build --no-cache dev
+
+# ログ確認
+docker compose logs -f dev
+
+# コンテナに入る
+docker compose exec dev bash
+
+# 停止して削除
+docker compose down
+
+# ボリュームも削除
+docker compose down -v
+```
+
+### 環境変数の設定
+
+プロジェクトルートに `.env` ファイルを作成：
+
+```bash
+# .env
+USERNAME=myuser
+USER_ID=1000
+GROUP_ID=1000
+```
+
+### カスタマイズ
+
+`docker-compose.override.yml` を作成して設定を上書き：
+
+```yaml
+# docker-compose.override.yml
+services:
+  dev:
+    ports:
+      - "8889:8888"  # Jupyter Labポート変更
+    environment:
+      - CUDA_VISIBLE_DEVICES=0,1  # 使用するGPUを制限
+    shm_size: '16gb'  # 共有メモリ増量
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1']  # GPU 0,1のみ使用
+              capabilities: [gpu]
+```
+
+---
+
+## GPU動作確認
+
+### 基本チェック
+
+```bash
+# ホストでGPU確認
+nvidia-smi
+
+# Docker内でGPU確認
+docker run --rm --gpus all nvidia/cuda:{{ cuda_version }}-base-ubuntu22.04 nvidia-smi
+
+# PyTorchでCUDA確認
+docker compose run --rm dev python -c "
+import torch
+print(f'PyTorch version: {torch.__version__}')
+print(f'CUDA available: {torch.cuda.is_available()}')
+print(f'CUDA version: {torch.version.cuda}')
+print(f'GPU count: {torch.cuda.device_count()}')
+if torch.cuda.is_available():
+    for i in range(torch.cuda.device_count()):
+        print(f'GPU {i}: {torch.cuda.get_device_name(i)}')
+"
+```
+
+### ベンチマーク
+
+```bash
+# 簡易ベンチマーク
+docker compose run --rm dev python -c "
+import torch
+import time
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'Using device: {device}')
+
+# 行列乗算ベンチマーク
+size = 5000
+a = torch.randn(size, size, device=device)
+b = torch.randn(size, size, device=device)
+
+# ウォームアップ
+_ = torch.matmul(a, b)
+
+# 計測
+torch.cuda.synchronize()
+start = time.time()
+c = torch.matmul(a, b)
+torch.cuda.synchronize()
+end = time.time()
+
+print(f'{size}x{size} matrix multiplication: {end-start:.4f} seconds')
+print(f'TFLOPS: {2*size**3/(end-start)/1e12:.2f}')
+"
+```
+
+---
+
+## よくある質問
+
+### Q1: Nix環境とDocker環境で依存関係が異なることはある？
+
+A: **ありません**。`uv.lock` ファイルが両環境で共有されるため、全く同じバージョンの依存関係（PyTorch {{ pytorch_version }}、CUDA {{ cuda_version }} 対応）がインストールされます。
+
+### Q2: GPUが認識されない
+
+A: 以下を確認してください：
+
+1. **NVIDIA Container Toolkitがインストールされているか**:
+   ```bash
+   docker run --rm --gpus all nvidia/cuda:{{ cuda_version }}-base-ubuntu22.04 nvidia-smi
+   ```
+
+2. **docker-compose.ymlでGPU設定があるか**:
+   ```yaml
+   deploy:
+     resources:
+       reservations:
+         devices:
+           - driver: nvidia
+             count: all
+             capabilities: [gpu]
+   ```
+
+3. **ホストでGPUが動作しているか**:
+   ```bash
+   nvidia-smi
+   ```
+
+4. **Dockerの再起動**:
+   ```bash
+   sudo systemctl restart docker
+   ```
+
+### Q3: "out of memory" エラーが出る
+
+A: 以下を試してください：
+
+1. **共有メモリ（shm_size）を増やす**:
+   ```yaml
+   # docker-compose.yml
+   shm_size: '16gb'  # デフォルトは8gb
+   ```
+
+2. **バッチサイズを小さくする**:
+   ```python
+   # train.py
+   batch_size = 32  # 64から32に変更
+   ```
+
+3. **使用するGPUを制限**:
+   ```bash
+   export CUDA_VISIBLE_DEVICES=0  # GPU 0のみ使用
+   docker compose run --rm dev python train.py
+   ```
+
+4. **混合精度学習を使用**:
+   ```python
+   # PyTorch AMP
+   from torch.cuda.amp import autocast, GradScaler
+   ```
+
+### Q4: 開発環境でコードの変更が反映されない
+
+A: 以下を確認してください：
+1. `docker-compose.yml` で `.:/app` がマウントされているか
+2. コンテナが起動しているか（`docker compose ps`）
+3. Python のインポートキャッシュ（`.pyc`）をクリア
+
+### Q5: CUDAバージョンが合わない
+
+A: **重要**: ホストのGPUドライババージョンが、コンテナのCUDAバージョンをサポートしている必要があります。
+
+| CUDA Version | 最小ドライババージョン |
+|--------------|---------------------|
+| CUDA 13.0    | 525.60.13           |
+| CUDA 12.8    | 525.60.13           |
+| CUDA 12.6    | 525.60.13           |
+| CUDA 12.4    | 525.60.13           |
+| CUDA 12.1    | 525.60.13           |
+| CUDA 11.8    | 520.61.05           |
+
+**確認方法**:
+```bash
+nvidia-smi  # Driver Versionを確認
+```
+
+### Q6: イメージサイズを小さくしたい
+
+A: 本番環境（Dockerfile.prod）は既に最適化されていますが、さらに削減する場合：
+- 不要な依存関係を `pyproject.toml` から削除
+- マルチステージビルドで不要なレイヤーを削除
+- `.dockerignore` を見直して不要なファイルを除外
+- `nvidia/cuda:{{ cuda_version }}-cudnn{{ cudnn_version.split('.')[0] }}-runtime-ubuntu22.04`（runtimeイメージ）を使用（develではなく）
+
+### Q7: 複数GPUでの分散学習
+
+A: PyTorch DistributedDataParallel (DDP) を使用：
+
+```python
+# train.py
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+# 初期化
+dist.init_process_group(backend='nccl')
+model = DDP(model, device_ids=[local_rank])
+```
+
+```bash
+# docker-compose.ymlで全GPU使用を確認
+docker compose run --rm dev torchrun --nproc_per_node=2 train.py
+```
+
+### Q8: Jupyter Labに接続できない
+
+A: 以下を確認：
+
+```bash
+# ポート8888でJupyter起動
+docker compose run --rm -p 8888:8888 dev jupyter lab --ip=0.0.0.0 --no-browser
+
+# ブラウザでアクセス
+http://localhost:8888
+```
+
+トークンは起動時のログに表示されます：
+```
+http://127.0.0.1:8888/lab?token=abc123...
+```
+
+---
+
+## 参考リンク
+
+- [Docker公式ドキュメント](https://docs.docker.com/)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+- [PyTorch Docker Hub](https://hub.docker.com/r/pytorch/pytorch)
+- [NVIDIA CUDA Docker Hub](https://hub.docker.com/r/nvidia/cuda)
+- [uv Docker統合ガイド](https://docs.astral.sh/uv/guides/integration/docker/)
+{% if use_nix %}
+- [Nix環境セットアップ](NIX_SETUP.md)
+{% endif %}
+- [CUDA環境セットアップ](CUDA_SETUP.md)

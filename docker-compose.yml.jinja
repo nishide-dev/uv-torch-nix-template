@@ -1,0 +1,158 @@
+{# Extract values from preset #}
+{% if pytorch_cuda_preset == 'pytorch-2.9.0-cuda-12.6' %}
+  {% set pytorch_version = '2.9.0' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.9.0-cuda-13.0' %}
+  {% set pytorch_version = '2.9.0' %}
+  {% set cuda_version = '13.0' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.8.0-cuda-12.6' %}
+  {% set pytorch_version = '2.8.0' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.8.0-cuda-12.8' %}
+  {% set pytorch_version = '2.8.0' %}
+  {% set cuda_version = '12.8' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.7.1-cuda-12.6' %}
+  {% set pytorch_version = '2.7.1' %}
+  {% set cuda_version = '12.6' %}
+  {% set cudnn_version = '9.16.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.7.1-cuda-11.8' %}
+  {% set pytorch_version = '2.7.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.6.0-cuda-12.4' %}
+  {% set pytorch_version = '2.6.0' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.6.0-cuda-11.8' %}
+  {% set pytorch_version = '2.6.0' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.4' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-12.1' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '9.1.0' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.5.1-cuda-11.8' %}
+  {% set pytorch_version = '2.5.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.4' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.4' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-12.1' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.4.1-cuda-11.8' %}
+  {% set pytorch_version = '2.4.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-12.1' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '12.1' %}
+  {% set cudnn_version = '8.9.7' %}
+{% elif pytorch_cuda_preset == 'pytorch-2.3.1-cuda-11.8' %}
+  {% set pytorch_version = '2.3.1' %}
+  {% set cuda_version = '11.8' %}
+  {% set cudnn_version = '8.9.7' %}
+{% else %}
+  {% set pytorch_version = pytorch_version %}
+  {% set cuda_version = cuda_version %}
+  {% set cudnn_version = cudnn_version %}
+{% endif %}
+# Docker Compose configuration for {{ project_name }}
+# PyTorch {{ pytorch_version }} + CUDA {{ cuda_version }} + cuDNN {{ cudnn_version }}
+# Usage:
+#   Development: docker compose up dev
+#   Production:  docker compose up prod
+
+services:
+  # 開発環境 - ホットリロード対応、全開発ツール含む、GPU対応
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        USERNAME: ${USERNAME:-appuser}
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+        CUDA_VERSION: "{{ cuda_version }}"
+        CUDNN_MAJOR: "{{ cudnn_version.split('.')[0] }}"
+    image: {{ project_name }}-dev:latest
+    container_name: {{ project_name }}-dev
+    volumes:
+      # プロジェクトディレクトリをマウント（ホットリロード用）
+      - .:/app
+      # UV キャッシュを永続化
+      - uv-cache:/home/${USERNAME:-appuser}/.cache/uv
+      # SSH キーをマウント（Gitアクセス用、オプション）
+      - ~/.ssh:/home/${USERNAME:-appuser}/.ssh:ro
+    ports:
+      - "8888:8888"  # Jupyter Lab
+      - "6006:6006"  # TensorBoard
+      - "2222:2222"  # SSH ポート
+    environment:
+      - PYTHONUNBUFFERED=1
+      - UV_CACHE_DIR=/home/${USERNAME:-appuser}/.cache/uv
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    # GPU設定（NVIDIA Container Toolkit必須）
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # 開発用はコマンド未指定（docker compose run dev <command> で自由に実行）
+    # command: python train.py
+    stdin_open: true
+    tty: true
+    shm_size: '8gb'  # PyTorchのDataLoaderで共有メモリを使う場合
+
+  # 本番環境 - 最小依存関係、セキュリティ強化、GPU対応
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      args:
+        USERNAME: ${USERNAME:-appuser}
+        CUDA_VERSION: "{{ cuda_version }}"
+        CUDNN_MAJOR: "{{ cudnn_version.split('.')[0] }}"
+        PYTHON_VERSION: "{{ python_version }}"
+    image: {{ project_name }}-prod:latest
+    container_name: {{ project_name }}-prod
+    # 本番環境ではボリュームマウントせず、イメージに含まれるコードを使用
+    ports:
+      - "6006:6006"  # TensorBoard
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    # GPU設定（NVIDIA Container Toolkit必須）
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # 本番用のコマンド（アプリケーションに応じて変更）
+    # command: python train.py --config production.yaml
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    shm_size: '8gb'  # PyTorchのDataLoaderで共有メモリを使う場合
+
+volumes:
+  uv-cache:
+    driver: local

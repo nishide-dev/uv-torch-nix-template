@@ -204,6 +204,70 @@ uv run jupyter lab
 uv run pytest tests/
 ```
 
+## 🐳 Docker環境（GPU対応）
+
+デプロイやCI/CD、Nix非対応環境向けに、GPU対応のDocker環境を含めることができます（`include_docker=true`）。
+
+### 2種類のDockerfile
+
+- **Dockerfile.dev**: 開発用（ホットリロード、Jupyter Lab、SSH対応、CUDA devel）
+- **Dockerfile.prod**: 本番用（マルチステージビルド、最小依存関係、CUDA runtime）
+
+### クイックスタート
+
+```bash
+# 開発環境で起動（GPU使用）
+docker compose up -d dev
+
+# CUDA動作確認
+docker compose run --rm dev python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
+
+# Jupyter Lab起動
+docker compose run --rm -p 8888:8888 dev jupyter lab --ip=0.0.0.0 --no-browser
+
+# トレーニング実行
+docker compose run --rm dev python train.py
+
+# 本番イメージのビルド
+docker compose build prod
+
+# 本番環境で推論実行
+docker compose up -d prod
+```
+
+### 前提条件
+
+**NVIDIA Container Toolkit**が必須です：
+
+```bash
+# Ubuntu/Debian の場合
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+  sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+
+# 動作確認
+docker run --rm --gpus all nvidia/cuda:12.6-base-ubuntu22.04 nvidia-smi
+```
+
+### Nix環境との使い分け
+
+| 用途 | 推奨環境 |
+|------|---------|
+| ローカル開発 | **Nix + direnv** |
+| デプロイ・推論 | **Docker** |
+| CI/CD | **Docker** |
+| クラウド環境 | **Docker** |
+| チーム共有 | **Docker** |
+
+**重要**: `uv.lock` が両環境の依存関係を保証するため、Nix環境とDocker環境で全く同じバージョン（PyTorch、CUDAライブラリ）がインストールされます。
+
+詳細は [`docs/DOCKER.md`](docs/DOCKER.md) を参照してください。
+
 ## 🔧 カスタマイズ
 
 ### CUDAバージョンの変更
