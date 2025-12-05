@@ -1,11 +1,11 @@
 # uv-torch-nix-template
 
-**PyTorch/CUDA開発環境の拡張テンプレート**
+**PyTorch/CUDA開発環境テンプレート**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
-[uv-nix-template](https://github.com/nishide-dev/uv-nix-template)に**PyTorch**と**CUDA**環境を追加する拡張テンプレートです。Nixによる完全な環境再現性を提供し、**NixOS**でも完全に動作します。
+[uv-nix-template](https://github.com/nishide-dev/uv-nix-template)ベースの**PyTorch/CUDA特化型テンプレート**です。Nixによる完全な環境再現性を提供し、**Ubuntu/Debian等のLinux環境で動作**します（NixOSにも対応）。
 
 ## ✨ 特徴
 
@@ -18,12 +18,13 @@
 - **cuDNN統合**: NVIDIA公式互換性マトリクスに基づいた正確なバージョン管理
 - **torchvision/torchaudio**: オプションで追加可能
 
-### 🐧 NixOS完全対応
+### 🔧 幅広いLinux環境に対応
 
-- **nix-ldサポート**: 未パッチのPyTorch Wheelが動作
-- **GPU自動検出**: `/run/opengl-driver/lib`を自動で`LD_LIBRARY_PATH`に追加
+- **Ubuntu/Debian等での動作**: 簡単なセットアップでCUDAを利用可能
+- **GPU自動検出**: `/run/opengl-driver/lib`経由でNVIDIAドライバーにアクセス
 - **ビルド環境完備**: flash-attn等のコンパイルに必要なツール（ninja, cmake等）を標準装備
 - **`--no-build-isolation`対応**: CUDA依存パッケージのビルドをサポート
+- **NixOSにも対応**: nix-ldによる完全なサポート
 
 ### 🔒 完全な再現性
 
@@ -54,23 +55,37 @@
    ```bash
    nvidia-smi  # 動作確認
    ```
-3. **NixOSユーザー**: `/etc/nixos/configuration.nix`でNVIDIAドライバーとnix-ldを有効化（詳細は[docs/NIX_SETUP.md](docs/NIX_SETUP.md)参照）
+
+3. **CUDA用システムセットアップ（Ubuntu/Debian等）**
+
+   NixのCUDAアプリケーションは`/run/opengl-driver/lib`にlibcuda.soがあることを期待します。以下のコマンドでセットアップしてください：
+
+   ```bash
+   # /run/opengl-driver/libを作成してlibcuda.soをシンボリックリンク
+   sudo mkdir -p /run/opengl-driver/lib
+   sudo find /usr/lib -name 'libcuda.so*' -exec ln -s {} /run/opengl-driver/lib/ \;
+
+   # 再起動後も永続化（推奨）
+   echo "L /run/opengl-driver/lib/libcuda.so - - - - /usr/lib/x86_64-linux-gnu/libcuda.so" | \
+     sudo tee /etc/tmpfiles.d/cuda-driver-for-nix.conf
+   sudo systemd-tmpfiles --create
+   ```
+
+   **注**: libcuda.soのパスはディストリビューションにより異なる場合があります（`/usr/lib64`, `/lib64`等）。詳細は[Nix CUDA on non-NixOS systems](https://danieldk.eu/Nix-CUDA-on-non-NixOS-systems)を参照。
+
+   <details>
+   <summary>NixOSユーザーの場合（クリックして展開）</summary>
+
+   `/etc/nixos/configuration.nix`でNVIDIAドライバーとnix-ldを有効化してください。詳細は[docs/NIX_SETUP.md](docs/NIX_SETUP.md)を参照。
+
+   </details>
 
 ### 使用方法
 
-#### ステップ1: ベーステンプレートでプロジェクト生成
-
 ```bash
-# uv-nix-templateでベースプロジェクトを作成
-uvx copier copy --trust gh:nishide-dev/uv-nix-template my-torch-project
+# プロジェクトを生成
+uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template my-torch-project
 cd my-torch-project
-```
-
-#### ステップ2: PyTorch/CUDA拡張を適用
-
-```bash
-# PyTorch拡張を追加適用
-uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template .
 ```
 
 対話的に以下を設定：
@@ -90,16 +105,18 @@ uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template .
 
 **注**: プリセットを選択すると、PyTorch/CUDA/cuDNNのバージョンが自動的に設定されます。手動で設定したい場合は`Custom`を選択してください。
 
-#### ステップ3: 環境構築とPyTorchインストール
+### CUDA動作確認
+
+プロジェクト生成時に環境構築は自動的に完了しています（`uv venv`, `uv sync`実行済み）。CUDAが正しく動作するか確認しましょう：
 
 ```bash
-# Nix環境を構築（direnvが自動でアクティベート）
+# CUDA用システムセットアップ（初回のみ・非NixOSの場合）
+# 前提条件のセクション参照
+
+# Nix環境をアクティベート
 direnv allow
 
-# 依存関係を同期（pyproject.tomlに自動設定されたPyTorchインデックスを使用）
-uv sync
-
-# 動作確認
+# CUDA動作確認
 uv run python -c "
 import torch
 print(f'PyTorch: {torch.__version__}')
@@ -108,8 +125,6 @@ if torch.cuda.is_available():
     print(f'GPU: {torch.cuda.get_device_name(0)}')
 "
 ```
-
-**注**: プリセットまたはカスタム設定で指定したバージョンに基づき、`pyproject.toml`に自動的にPyTorchインデックスが設定されます。
 
 期待される出力（PyTorch 2.9.0 + CUDA 12.6の場合）：
 
@@ -132,14 +147,14 @@ GPU: NVIDIA GeForce RTX 4060 Ti
 | `use_torchaudio` | torchaudioを含めるか | `false` | - |
 | `additional_cuda_libs` | 追加のCUDAライブラリ | なし | `nccl,cutlass` |
 
-## 📂 拡張されるファイル
+## 📂 追加されるファイル
 
 ```
 my-torch-project/
-├── flake.nix                 # CUDA環境が追加される（nix-ld、LD_LIBRARY_PATH設定含む）
+├── flake.nix                 # CUDA環境が追加される（LD_LIBRARY_PATH設定含む）
 ├── pyproject.toml            # PyTorchインデックスが自動設定される
 ├── docs/
-│   ├── NIX_SETUP.md          # NixOS固有の設定ガイド（新規・必読）
+│   ├── NIX_SETUP.md          # NixOS固有の設定ガイド（新規・NixOSユーザー向け）
 │   └── CUDA_SETUP.md         # GPU環境セットアップ全般（新規）
 └── .envrc                    # direnv設定（変更なし）
 ```
@@ -147,18 +162,12 @@ my-torch-project/
 ## 💡 開発ワークフロー例
 
 ```bash
-# プロジェクト生成
-uvx copier copy --trust gh:nishide-dev/uv-nix-template ml-experiment
+# プロジェクト生成（PyTorch/CUDA環境込み）
+uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template ml-experiment
 cd ml-experiment
 
-# PyTorch拡張を適用
-uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template .
-
-# 環境構築
+# Nix環境をアクティベート
 direnv allow
-
-# PyTorchインストール（pyproject.tomlに自動設定されたインデックスを使用）
-uv sync
 
 # よく使うライブラリを追加
 uv add transformers accelerate datasets
@@ -214,6 +223,21 @@ cudaLibs = with cudaPackages; [
 
 ### よくある問題
 
+**Q: `torch.cuda.is_available()`が`False`を返す（非NixOS）**
+
+A: `/run/opengl-driver/lib`のセットアップが必要です：
+
+```bash
+# libcuda.soのシンボリックリンクを作成
+sudo mkdir -p /run/opengl-driver/lib
+sudo find /usr/lib -name 'libcuda.so*' -exec ln -s {} /run/opengl-driver/lib/ \;
+
+# 環境の再読み込み
+direnv reload
+```
+
+詳細: [Nix CUDA on non-NixOS systems](https://danieldk.eu/Nix-CUDA-on-non-NixOS-systems)
+
 **Q: `torch.cuda.is_available()`が`False`を返す（NixOS）**
 
 A: NixOS固有の設定を確認：
@@ -226,7 +250,21 @@ A: NixOS固有の設定を確認：
 
 **Q: `libcuda.so.1: cannot open shared object file`**
 
-A: NixOSドライバー設定の問題です：
+A: システムによって対処が異なります：
+
+**非NixOS**:
+```bash
+# libcuda.soのパスを確認
+find /usr/lib /lib -name 'libcuda.so*' 2>/dev/null
+
+# 見つかったパスをシンボリックリンク
+sudo ln -s /path/to/libcuda.so* /run/opengl-driver/lib/
+
+# 環境の再読み込み
+direnv reload
+```
+
+**NixOS**:
 ```bash
 # ドライバーの再インストール
 sudo nixos-rebuild switch
@@ -266,6 +304,7 @@ from torch.cuda.amp import autocast, GradScaler
 ### 外部ドキュメント
 
 - [ベーステンプレート](https://github.com/nishide-dev/uv-nix-template) - uv-nix-templateのドキュメント
+- [Nix CUDA on non-NixOS systems](https://danieldk.eu/Nix-CUDA-on-non-NixOS-systems) - 非NixOSでのCUDA設定ガイド
 - [PyTorch公式ドキュメント](https://pytorch.org/docs/stable/index.html)
 - [uv PyTorch統合ガイド](https://docs.astral.sh/uv/guides/integration/pytorch/)
 - [CUDA Toolkit](https://docs.nvidia.com/cuda/)
@@ -273,36 +312,38 @@ from torch.cuda.amp import autocast, GradScaler
 
 ## 🔄 テンプレートの更新
 
-ベーステンプレートまたは拡張テンプレートが更新された場合：
+テンプレートが更新された場合：
 
 ```bash
-# ベーステンプレートの更新
+# テンプレートの更新
 uvx copier update --trust
-
-# PyTorch拡張の更新（別途適用）
-uvx copier copy --trust gh:nishide-dev/uv-torch-nix-template .
 ```
 
 ## 🎯 ベーステンプレートとの関係
 
-このテンプレートは**拡張テンプレート**です：
+このテンプレートは**[uv-nix-template](https://github.com/nishide-dev/uv-nix-template)をベースにしたPyTorch/CUDA特化版**です。
+
+独立したテンプレートとして使用でき、PyTorch/CUDA環境込みで1コマンドでプロジェクト生成できます：
 
 ```
-uv-nix-template (ベース)
+uv-nix-template
 ├── Python環境
 ├── uv
 ├── Nix + direnv
 ├── Ruff/ty/pytest
 └── GitHub Actions
 
-     ↓ 拡張適用
+     ↓ 派生
 
-uv-torch-nix-template (拡張)
+uv-torch-nix-template
 ├── 上記すべて +
-├── CUDA環境
+├── PyTorch/CUDA環境
 ├── cuDNN
-└── PyTorch設定
+├── プリセットシステム
+└── GPU自動検出
 ```
+
+**PyTorch/CUDAが不要な場合**: [uv-nix-template](https://github.com/nishide-dev/uv-nix-template)を直接使用してください。
 
 ## 🤝 関連プロジェクト
 

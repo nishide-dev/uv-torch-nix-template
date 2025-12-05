@@ -89,9 +89,10 @@
         # ---------------------------------------------------------
         # 【重要】CUDAバージョンの管理ポイント
         # ここで指定したバージョンのToolkitが環境に展開される
-        # 利用可能: cudaPackages_11_8, cudaPackages_12_1, cudaPackages
+        # CUDA {{ cuda_version }} を使用
         # ---------------------------------------------------------
-        cudaPackages = pkgs.cudaPackages;  # デフォルトバージョンを使用
+        {% set cuda_major_minor = cuda_version.replace('.', '_') %}
+        cudaPackages = pkgs.cudaPackages_{{ cuda_major_minor }} or pkgs.cudaPackages;
 
         # Pythonバージョンの選択（既存プロジェクトの.python-versionから取得）
         pythonVersionFile = builtins.readFile ./.python-version;
@@ -173,20 +174,15 @@
             # Nixストア内のCUDAライブラリパス
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath (systemDependencies ++ cudaLibs)}:''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-            # 【最重要】NVIDIAドライバーのlibcuda.soパスを動的に検出して追加
-            # - NixOS: /run/opengl-driver/lib
-            # - その他のLinux: ldconfigで検出
-            if [ -d "/run/opengl-driver/lib" ]; then
-              export LD_LIBRARY_PATH="/run/opengl-driver/lib:$LD_LIBRARY_PATH"
-            else
-              LIBCUDA_DIR=$(ldconfig -p 2>/dev/null | grep -oP 'libcuda.so.1 .* => \K[^ ]+' | head -1 | xargs dirname 2>/dev/null || echo "")
-              if [ -n "$LIBCUDA_DIR" ] && [ -d "$LIBCUDA_DIR" ]; then
-                export LD_LIBRARY_PATH="$LIBCUDA_DIR:$LD_LIBRARY_PATH"
-              fi
-            fi
-
             # libstdc++を優先的に使用（ABI互換性のため）
             export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH"
+
+            # NVIDIAドライバーのlibcuda.soパスを追加
+            # 非NixOSシステムでは、事前に /run/opengl-driver/lib を作成し、libcuda.soをシンボリックリンクする必要があります
+            # 詳細: docs/CUDA_SETUP.md
+            if [ -d "/run/opengl-driver/lib" ]; then
+              export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/run/opengl-driver/lib"
+            fi
 
             # コンパイル用フラグ（flash-attn等をビルドする場合に必要）
             export EXTRA_LDFLAGS="-L/lib -L${cudaPackages.cudatoolkit}/lib"

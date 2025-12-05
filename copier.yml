@@ -246,12 +246,3 @@ _tasks:
 
     ============================================================
     "
-
-# ============================================================================
-# Template metadata
-# ============================================================================
-
-_metadata:
-  template_version: "0.1.0"
-  base_template: "uv-nix-template"
-  description: "PyTorch/CUDA extension for uv-nix-template"
